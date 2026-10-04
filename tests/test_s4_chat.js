@@ -54,7 +54,7 @@ const BASE = 'http://localhost:8000';
     await k.locator('.vlp-case .vlp-case-chat').click();
     await k.waitForFunction(() => /재전송 테스트/.test(document.querySelector('.vlp-chat-body').textContent));
     const kb = await k.locator('.vlp-chatdock').boundingBox();
-    assert.ok(kb.width <= 361 && kb.x >= 1400 - 361, 'PC: 우측 열 ' + JSON.stringify(kb));
+    assert.ok(kb.width <= 362 && kb.x + kb.width <= 1400 - 20 && kb.x >= 1400 - 362 - 40, 'PC: 우측 열 ' + JSON.stringify(kb));
     assert.ok(await k.evaluate(() => parseInt(getComputedStyle(document.body).paddingRight) >= 359), '본문이 가려지지 않음');
     ok('PC 1400: 대화는 우측 고정 열, 본문 폭 확보');
 

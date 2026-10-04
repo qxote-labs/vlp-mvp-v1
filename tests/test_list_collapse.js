@@ -1,5 +1,6 @@
 // 태블릿 세로: 카마스터·시공사·관리자 목록|상세 2단 화면에서 목록을 접으면 상세가 전체 폭이 되고, 폰에서는 버튼이 없다.
-const { chromium } = require('playwright'); const assert = require('assert'); const BASE = 'http://localhost:8000';
+const { chromium } = require('playwright'); const assert = require('assert');
+const { loginAs } = require('./_login'); const BASE = 'http://localhost:8000';
 (async () => {
   const b = await chromium.launch(); const errs = [];
   try {
@@ -18,8 +19,8 @@ const { chromium } = require('playwright'); const assert = require('assert'); co
       console.log('✔', name);
     };
     const k = await ctx.newPage(); await k.goto(BASE + '/karmaster.html?nosw=1&demoKm=k1'); const nav = k.locator('.vlp-nav-btn[data-tab=clients]').first(); await nav.waitFor({ state: 'attached', timeout: 15000 }); if (!(await k.locator('.vlp-chip').count())) await nav.click(); await check(k, '카마스터');
-    const s = await ctx.newPage(); await s.goto(BASE + '/shop.html?nosw=1'); await s.selectOption('#quick-login', 'a'); await check(s, '시공사');
-    const a = await ctx.newPage(); await a.goto(BASE + '/admin.html?nosw=1'); await a.selectOption('#quick-login', 'admin_ulsan'); await check(a, '관리자');
+    const s = await ctx.newPage(); await loginAs(s, 'shop', 'a'); await s.click('.vlp-nav-btn[data-tab=clients]'); await check(s, '시공사');
+    const a = await ctx.newPage(); await loginAs(a, 'admin', 'admin_ulsan'); await check(a, '관리자');
     assert.deepStrictEqual(errs, []); console.log('PASS test_list_collapse');
   } finally { await b.close(); }
 })().catch((e) => { console.error('FAIL', e.message); process.exit(1); });

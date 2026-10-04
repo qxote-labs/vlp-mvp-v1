@@ -43,15 +43,26 @@
     dock.classList.remove('inbody'); ['top', 'left', 'width', 'height'].forEach((k) => dock.style.removeProperty(k));
     const rbBottom = rb ? Math.max(0, Math.round(rb.getBoundingClientRect().bottom)) : 0;
     dock.style.setProperty('--chat-top', (wide ? 0 : rbBottom) + 'px');
-    if (wide || !app || !app.parentElement) return;
+    if (wide) { // 1280 이상: 오른쪽 대화창을 본문 틀(위·아래) 높이에 맞추고, 틀의 왼쪽 여백과 같은 오른쪽 여백을 둔다 (스크롤 막대 폭은 제외)
+      const fr = (app && app.closest('.frame')) || document.querySelector('.frame'), r = fr ? fr.getBoundingClientRect() : null;
+      const cwid = document.documentElement.clientWidth || vw, gap = 26;
+      const t = Math.max(Math.round(r ? r.top : rbBottom), 0), b = r ? Math.min(Math.round(r.bottom), vh - gap) : vh, cw = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--chat-w'), 10) || 360;
+      if (b - t < 320) return;
+      dock.classList.add('inbody', 'wide');
+      dock.style.top = t + 'px'; dock.style.height = (b - t) + 'px'; dock.style.width = cw + 'px'; dock.style.left = (cwid - cw - gap) + 'px';
+      return;
+    }
+    if (!app || !app.parentElement) return;
     const body = app.parentElement.getBoundingClientRect();
     const top = Math.max(rbBottom, Math.round(body.top)), left = Math.round(body.left), width = Math.min(Math.round(body.width), vw - left);
-    const bottom = vw < 600 ? vh : Math.min(Math.max(Math.round(body.bottom), top + 420), vh);
+    const frame = app.closest('.frame'), fb = frame ? Math.round(frame.getBoundingClientRect().bottom) - 1 : Math.round(body.bottom); // 흰 틀 아래 끝까지(입력줄이 화면 아래에 닿도록)
+    const bottom = vw < 600 ? vh : Math.min(Math.max(fb, Math.round(body.bottom), top + 420), vh);
     if (bottom - top < 240 || width < 280) return;
     dock.classList.add('inbody');
     dock.style.top = top + 'px'; dock.style.left = left + 'px'; dock.style.width = width + 'px'; dock.style.height = (bottom - top) + 'px';
   }
   window.addEventListener('resize', placeDock);
+  window.addEventListener('scroll', () => { if (dock && window.innerWidth >= 1280) placeDock(); }, { passive: true });
 
   /** opts: {role, other('카마스터' 등 상대 표기), summary:'아이오닉 6 · SS-... · 김카마', readOnly, opener, onClose, api:{messages, send}(선택)} */
   function open(contractId, opts) {
@@ -78,7 +89,7 @@
     bodyEl.addEventListener('scroll', () => { state.atBottom = bodyEl.scrollHeight - bodyEl.scrollTop - bodyEl.clientHeight < 40; if (state.atBottom) dock.querySelector('.vlp-chat-newmsg').hidden = true; });
     dock.querySelector('.vlp-chat-newmsg').addEventListener('click', () => { bodyEl.scrollTop = bodyEl.scrollHeight; });
     buildFoot();
-    document.body.appendChild(dock); document.body.classList.add('vlp-chat-open');
+    document.body.appendChild(dock); document.body.classList.add('vlp-chat-open'); placeDock();
     refresh(true); timer = setInterval(() => { if (!dock) return; refresh(false); }, V.config.get('pollIntervalMs'));
     dock.querySelector('textarea') ? dock.querySelector('textarea').focus() : dock.querySelector('.vlp-chat-close').focus();
     return dock;

@@ -2,6 +2,7 @@
 // + 미가입 카마스터 조회번호 claim(오입력 잠금 포함). 서버 호출은 모두 facade(목 어댑터)를 거친다.
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const UI = require('./_ui');
 const BASE = 'http://localhost:8000';
 const KM_PHONE = '010-2222-3301'; // v6 시드 카마스터(김도현) — 목 명부에 가입 카마스터로 동기화된다
@@ -17,8 +18,7 @@ const KM_PHONE = '010-2222-3301'; // v6 시드 카마스터(김도현) — 목 �
     const km = await context.newPage(); track(km, 'karmaster');
 
     // ---- 고객 로그인 → 등록 폼 ----
-    await customer.goto(BASE + '/customer.html?nosw=1');
-    await customer.fill('#login-name', '홍길동'); await customer.fill('#login-phone', '01011110001'); await customer.click('#login-submit');
+    await loginAs(customer, 'customer', { name: '홍길동', phone: '010-1111-0001' });
     await customer.waitForSelector('.vlp-nav-btn');
     await customer.click('#vh-new');
     await customer.waitForSelector('#rq-contract-no');
@@ -54,8 +54,7 @@ const KM_PHONE = '010-2222-3301'; // v6 시드 카마스터(김도현) — 목 �
     await customer.click('#vd-ok');
 
     // ---- 카마스터: 승인 대기 (마스킹) ----
-    await km.goto(BASE + '/karmaster.html?nosw=1');
-    await km.selectOption('#quick-login', { index: 1 });
+    await loginAs(km, 'karmaster', 'k1');
     await UI.kmOpen(km, { urgent: '승인 필요' });
     const pendHTML = await km.innerHTML('.vlp-app-karmaster');
     assert.ok(!pendHTML.includes('HM-2026-0001'), '승인 전에 제조사 계약번호가 DOM에 있음');

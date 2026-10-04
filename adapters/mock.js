@@ -116,6 +116,7 @@
       ReleaseRequested: ['karmaster', '출고 요청이 도착했습니다'],
       ReleaseOrdered: ['customer', '출고가 의뢰되었습니다'],
       DeliveryStateChanged: ['customer', '배송 상태가 변경되었습니다'],
+      AugmentationPublished: ['customer', '배송 안내가 새로 올라왔습니다'], // 카마스터가 위치·안내를 게시하면 고객에게 알린다(문구에 위치 평문을 싣지 않음)
       DeliveryExceptionRaised: ['customer', '배송에 지연이 발생했습니다'],
       AccessGrantClaimed: ['customer', '카마스터가 조회를 시작했습니다'],
       DeliveryCompleted: ['customer', '인도가 완료되었습니다'],

@@ -1,5 +1,6 @@
 // S3 PWA-18~22: 시공사 필수 촬영(연결 끊김 → 복구) · 대리 인수 · 카마스터 인도 확인 · 고객 원격 승인(사진 전부 열람 후, 검수 불합격 사유) · 평가
 const { chromium } = require('playwright');
+const { loginAs } = require('./_login');
 const assert = require('assert');
 const UI = require('./_ui');
 const BASE = 'http://localhost:8000';
@@ -30,8 +31,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
     const s = await ctx.newPage(); hook(s, 'shop');
     // 시드에 대리 인수 건이 여럿(쏘나타·코나 등)이라, 이 시나리오가 진행시킨 홍길동 아이오닉 6 건을 이름으로 고른다
     const openShop = async () => { await s.waitForSelector('.vlp-case-row', { timeout: 15000 }); const row = s.locator('.vlp-case-row', { hasText: '아이오닉 6' }).filter({ hasText: 'SS-' }); await row.first().click(); await s.waitForSelector('.vlp-primary-btn', { timeout: 15000 }); await UI.primary(s); await s.waitForSelector('.vlp-cap-row'); };
-    await s.goto(BASE + '/shop.html?nosw=1');
-    await s.evaluate(() => { const sh = Store.getShops().find(x => !x.verificationStatus || x.verificationStatus === 'approved'); sessionStorage.setItem('v6_shop_id', sh.id); });
+    await loginAs(s, 'shop', 'a'); await s.evaluate(() => sessionStorage.setItem('vlp_shop_tab', 'clients'));
     await s.reload(); await openShop();
     assert.strictEqual(await s.locator('.vlp-cap-row').count(), 6);
     assert.strictEqual(await s.locator('.vlp-proxy-go').isDisabled(), true);

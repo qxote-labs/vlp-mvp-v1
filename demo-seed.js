@@ -72,6 +72,8 @@
       // 김민준 — 인도 완료 2건(평가 전 / 평가 완료)
       { who: 'kim', km: 'k1', no: 'HM-FLOW-101', model: '투싼', upto: 'DELIVERED', note: '인도 완료 · 평가 전' },
       { who: 'kim', km: 'k1', no: 'KA-FLOW-102', model: '스포티지', brand: '기아', upto: 'DELIVERED', rate: ['KARMASTER', 'SHOP', 'DELIVERY_COMPANY'], note: '인도 완료 · 평가 완료' },
+      // 한도윤 — 탁송 중(지연·시공 게시 없음): 카마스터 위치 입력·안내 검증용
+      { who: 'han', km: 'k1', no: 'HM-FLOW-103', model: '아반떼', upto: 'IN_TRANSIT', dest: 'DEALERSHIP', note: '탁송 중 · 위치 입력 확인용' },
       // 이서연 — 이동 중(위치 수집 3곳 + 카마스터 안내 + 시공 중 게시 + 해소된 지연)
       { who: 'lee', km: 'k2', no: 'KA-FLOW-201', model: '니로 EV', brand: '기아', dest: 'CUSTOM_ADDRESS', upto: 'IN_TRANSIT', resolvedDelay: 'traffic', post: [['LOCATION', '대전 휴게소 경유 중'], ['CUSTOMIZING', '선팅 시공 중']], note: '이동 중 · 자택 배송' },
       // 박지훈 — 도착: 현장 인수 대기(모두 합격) / 검수 불합격 + 카마스터 확인 완료

@@ -39,7 +39,7 @@ function _renderInner() {
     VLP.rolebar.set({ role: 'karmaster', name: '', phone: '', action: null });
     if (unregisteredMode === 'login' || unregisteredMode === 'recover') {
       root.appendChild(VLP.karmasterScreens.renderClaim({ back: () => { unregisteredMode = null; render(); }, onClaimed: (phone, token) => { claimedPhone = phone; sessionStorage.setItem('vlp_km_claimed', phone); sessionStorage.setItem('vlp_km_session', token || ''); VLP.ui.setKarmasterSession(phone, '', token); unregisteredMode = null; render(); } }));
-    } else root.appendChild(renderLogin());
+    } else { if (VLP.roles.loginRedirect('karmaster')) return; root.appendChild(renderLogin()); }
   } else {
     const km = Store.getKarmaster(loggedInId);
     VLP.ui.syncMockRegistry(Store.getKarmasters());
@@ -69,39 +69,7 @@ function loginPhoneFormat(raw) {
 // 쓰였던 그 값)를 그대로 로그인 비밀번호로 승격시켜, 이제부터는 전화번호+비밀번호 조합이 실제 인증
 // 수단이 되게 했다. 테스트 편의를 위한 "빠른 로그인" 드롭다운은 지금처럼 비밀번호 없이 그대로 둔다 —
 // 데모/테스트 전용 우회 경로라는 성격 자체가 바뀌지 않았고, 기존 Playwright 테스트들이 이 경로에 의존한다.
-function renderLogin() {
-  const wrap = el(`<div style="max-width:400px;margin:60px auto;text-align:center;">
-    <h2 style="font-size:22px;">카마스터 로그인</h2>
-    <div class="sub" style="margin-bottom:20px;">등록된 연락처와 비밀번호로 로그인합니다.</div>
-    <input id="login-phone" type="tel" placeholder="010-1234-5678" style="margin-bottom:8px;" autocomplete="off">
-    <input id="login-pw" type="password" placeholder="비밀번호" style="margin-bottom:8px;" autocomplete="off">
-    <div class="hint" id="login-hint" style="margin-bottom:10px;min-height:16px;"></div>
-    <button class="btn btn-primary" style="width:100%;" id="login-submit">로그인</button>
-    <div class="btn-row" style="margin-top:10px;">
-      <button class="btn btn-outline" style="width:auto;padding:10px 18px;" onclick="toggleUnregisteredLogin()">비가입자이신가요? 계약 확인하기</button>
-    </div>
-    <div style="margin-top:28px;padding-top:16px;border-top:1px solid #ddd;text-align:left;">
-      <label style="font-size:12px;color:#595959;">데모 계정으로 빠른 로그인 (비밀번호 불필요)</label>
-      <select id="quick-login" style="margin-top:6px;">
-        <option value="">계정 선택…</option>
-        ${Store.getKarmasters().map(k => `<option value="${k.id}">${k.name} · ${k.phone}</option>`).join('')}
-      </select>
-    </div>
-  </div>`);
-  const phoneEl = wrap.querySelector('#login-phone'), pwEl = wrap.querySelector('#login-pw'), hintEl = wrap.querySelector('#login-hint'), submitBtn = wrap.querySelector('#login-submit');
-  phoneEl.addEventListener('input', () => { phoneEl.value = loginPhoneFormat(phoneEl.value); hintEl.textContent = ''; });
-  phoneEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitBtn.click(); });
-  pwEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitBtn.click(); });
-  { const q = new URLSearchParams(location.search), pf = q.get('prefill'); if (pf) { phoneEl.value = loginPhoneFormat(pf); pwEl.value = q.get('prefillPin') || ''; submitBtn.focus(); } } // 런처에서 번호·비밀번호를 채워 열기(로그인은 직접 누른다, 데모 전용)
-  submitBtn.addEventListener('click', () => {
-    const km = Store.getKarmasterByPhone(phoneEl.value);
-    if (!km) { hintEl.textContent = '등록되지 않은 연락처입니다. 번호를 다시 확인해 주세요.'; return; }
-    if (!km.pin || km.pin !== pwEl.value) { hintEl.textContent = '비밀번호가 일치하지 않습니다.'; return; }
-    tryLogin(km.id);
-  });
-  wrap.querySelector('#quick-login').addEventListener('change', (e) => { if (e.target.value) tryLogin(e.target.value); });
-  return wrap;
-}
+function renderLogin() { return el('<div class="hint" style="text-align:center;margin:60px 0;">로그인 화면으로 이동합니다…</div>'); }
 function toggleUnregisteredLogin() { unregisteredMode = unregisteredMode === 'login' ? null : 'login'; render(); }
 
 function tryLogin(id) {

@@ -1,6 +1,7 @@
 // S1 (PWA-06 조회번호 1회 표시, PWA-07 권한, PWA-08 claim, PLAT-03 SMS 비활성): 미가입 카마스터 흐름 e2e.
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const UI = require('./_ui');
 const BASE = 'http://localhost:8000';
 const NEW_PHONE = '010-9999-0009';
@@ -14,8 +15,7 @@ const NEW_PHONE = '010-9999-0009';
   try {
     const customer = await context.newPage(); track(customer, 'customer');
     const km = await context.newPage(); track(km, 'karmaster');
-    await customer.goto(BASE + '/customer.html?nosw=1');
-    await customer.fill('#login-name', '이영희'); await customer.fill('#login-phone', '01011110002'); await customer.click('#login-submit');
+    await loginAs(customer, 'customer', { name: '이영희', phone: '010-1111-0002' });
     await customer.waitForSelector('#vh-new'); await customer.click('#vh-new');
     await customer.fill('#rq-contract-no', 'KA-777'); await customer.fill('#rq-car', '카니발'); await customer.fill('#rq-km-phone', NEW_PHONE);
     await customer.click('#rq-submit'); await customer.waitForSelector('#vd-token');
@@ -75,8 +75,7 @@ const NEW_PHONE = '010-9999-0009';
       await km.fill('#cl-phone', NEW_PHONE); await km.fill('#cl-token', tok); await km.fill('#cl-pin', pin);
       if (await km.isVisible('#cl-pin2')) await km.fill('#cl-pin2', pin);
     };
-    await km.goto(BASE + '/karmaster.html?nosw=1');
-    await km.click('text=비가입자이신가요?');
+    await km.goto(BASE + '/karmaster.html?nosw=1&claim=1');
     await km.waitForSelector('#cl-phone');
     assert.strictEqual(await km.locator('#cl-pending').count(), 0, '조회번호 소지 전 대기 건수 노출');
     await fillAll('WRONG0', PIN); await km.click('#cl-submit'); await km.waitForSelector('#cl-pin2:visible'); // 처음이면 확인번호를 한 번 더 받는다(시도 횟수에는 안 셈)
@@ -102,8 +101,7 @@ const NEW_PHONE = '010-9999-0009';
 
     // 다시 들어가기: 세션을 비우고 연락처+확인번호로 로그인
     await km.evaluate(() => { sessionStorage.clear(); localStorage.removeItem('vlp_km_session'); });
-    await km.goto(BASE + '/karmaster.html?nosw=1');
-    await km.click('text=비가입자이신가요?'); await km.waitForSelector('#cl-phone');
+    await km.goto(BASE + '/karmaster.html?nosw=1&claim=1'); await km.waitForSelector('#cl-phone');
     await km.click('#cl-tab-login'); await km.fill('#cl-phone', NEW_PHONE); await km.fill('#cl-pin', '000000'); await km.click('#cl-submit');
     await km.waitForSelector('#cl-error:not([hidden])');
     await km.fill('#cl-pin', PIN); await km.click('#cl-submit');

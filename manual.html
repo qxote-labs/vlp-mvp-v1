@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>VLP 사용 방법 안내</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b6e8a">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<style>
+  :root { --brand: #0b6e8a; --ink: #1c2430; --muted: #5b6676; --line: #d9dfe6; --soft: #e4eef2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f2f4f6; color: var(--ink); font: 15px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans KR", sans-serif; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 24px; margin: 8px 0 4px; }
+  h2 { font-size: 18px; margin: 0 0 8px; color: var(--brand); }
+  h3 { font-size: 15px; margin: 14px 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 18px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 14px; margin-bottom: 14px; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+  nav.toc a { padding: 7px 14px; border: 1px solid var(--brand); border-radius: 999px; color: var(--brand); text-decoration: none; font-size: 14px; background: #fff; }
+  ol, ul { margin: 6px 0 8px 20px; padding: 0; }
+  li { margin: 3px 0; }
+  .tip { background: var(--soft); border-radius: 10px; padding: 10px 12px; margin: 10px 0 4px; font-size: 14px; }
+  .note { color: var(--muted); font-size: 13px; }
+  a.back { color: var(--brand); font-weight: 700; text-decoration: none; }
+  b.k { background: var(--soft); border-radius: 6px; padding: 1px 6px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="app.html">← 로그인으로 돌아가기</a>
+  <h1>VLP 사용 방법 안내</h1>
+  <p class="lead">신차 인도부터 신차 케어까지 한 앱에서 진행합니다. 역할(고객·카마스터·시공사)별로 어떻게 쓰는지 간단히 정리했습니다.</p>
+  <nav class="toc" aria-label="목차">
+    <a href="#login">로그인·역할 전환</a><a href="#customer">고객</a><a href="#karmaster">카마스터</a><a href="#shop">시공사</a><a href="#faq">자주 묻는 것</a>
+  </nav>
+
+  <section class="card" id="login">
+    <h2>로그인과 역할 전환</h2>
+    <ol>
+      <li>전화번호를 입력하고 <b class="k">계속</b>을 누릅니다. (비밀번호 입력은 서비스 정책 확정 후 적용됩니다.)</li>
+      <li>가진 역할이 하나면 바로 그 화면으로, 둘 이상이면 <b>어떤 역할로 들어갈지</b> 고르는 화면이 나옵니다.</li>
+      <li>들어간 뒤에도 화면 맨 위 줄에서 언제든 다른 역할로 바꿀 수 있습니다.</li>
+      <li>아직 가입 전인 카마스터는 고객이 보내준 <b>조회번호</b>로 계약을 확인하고, 확인번호를 정하면 이후 번호만으로 들어올 수 있습니다.</li>
+    </ol>
+    <div class="tip">처음 오신 고객은 이름을 한 번 적으면 고객으로 시작합니다.</div>
+  </section>
+
+  <section class="card" id="customer">
+    <h2>고객</h2>
+    <p class="note">메뉴: 홈 · 내 차량 · 신차케어 · 메시지 · 내 정보</p>
+    <h3>신차 인도</h3>
+    <ol>
+      <li><b>홈</b>의 "지금 확인할 일"에서 해야 할 일을 바로 처리합니다. (예: 계약 내용 확인)</li>
+      <li>카마스터가 승인하면 <b>계약 내용 확인</b> → <b>출고 요청</b>을 보냅니다.</li>
+      <li>출고 준비·배송 중에는 <b>내 차량</b>의 단계 표시와 위치 탭에서 진행을 봅니다. 지연이 생기면 안내가 표시됩니다.</li>
+      <li>차량이 도착하면 <b>인도 확인</b>이 나옵니다. 현장에서 직접 받거나, 원격이라면 시공사가 대신 인수한 기록과 사진을 열람한 뒤 승인합니다.</li>
+      <li>인도가 끝나면 카마스터와 시공사를 <b>평가</b>할 수 있습니다.</li>
+    </ol>
+    <h3>신차 케어</h3>
+    <ol>
+      <li><b>신차케어</b>에서 시공사에 견적을 요청하고, 견적을 확인하면 계약이 됩니다.</li>
+      <li>입고 → 작업 → 검수 → 출차 → 수령 순서로 진행되며, 검수 단계에서 이상이 있으면 <b>이의</b>를 낼 수 있습니다.</li>
+    </ol>
+    <div class="tip">궁금한 점은 건 상세의 <b>채팅</b>으로 카마스터·시공사에게 물을 수 있습니다.</div>
+  </section>
+
+  <section class="card" id="karmaster">
+    <h2>카마스터</h2>
+    <p class="note">메뉴: 오늘 · 담당 고객 · 메시지 · 내 정보</p>
+    <ol>
+      <li><b>오늘</b>에서 승인 대기·출고 의뢰·인도 확인·지연 후보 건을 한눈에 보고 바로 처리합니다.</li>
+      <li>새 계약은 <b>승인</b> 또는 <b>거절</b>합니다. 고객이 확인하고 출고 요청을 보내면 <b>출고 의뢰</b>를 합니다.</li>
+      <li>배송 중에는 <b>보강정보</b>(안내·지연)를 입력하고, 위치 탭에서 진행을 확인합니다.</li>
+      <li>차량이 도착하면 <b>인도 확인</b>을 합니다. 고객 승인과 함께 두 쪽이 모두 확인되어야 인도가 종결됩니다.</li>
+      <li><b>담당 고객</b>에서 고객별 건을 필터로 찾고, 상세에서 채팅으로 안내합니다. 태블릿·PC에서는 목록을 접어 상세를 넓힐 수 있습니다.</li>
+    </ol>
+    <div class="tip">고객 정보는 개인정보 보호를 위해 일부가 가려져 보입니다.</div>
+  </section>
+
+  <section class="card" id="shop">
+    <h2>시공사</h2>
+    <p class="note">메뉴: 할 일 · 목록(전체·견적 요청·입고 대기·작업 중·검수 대기·이의 등)</p>
+    <h3>신차 케어 건</h3>
+    <ol>
+      <li><b>견적 요청</b>에 금액을 회신합니다.</li>
+      <li><b>입고 확인</b>에서 필수 촬영 6컷을 올리고 입고를 기록합니다.</li>
+      <li>작업 중 사진을 올리고(잘못 올린 사진은 회수), 작업이 끝나면 추가 금액과 사유를 적어 <b>검수 요청</b>을 합니다.</li>
+      <li>고객이 이의를 내면 사유를 보고 보완한 뒤 재검수를 요청하고, 승인되면 출차·수령 준비로 이어집니다.</li>
+    </ol>
+    <h3>신차 인도 건 (인도지 시공사)</h3>
+    <ol>
+      <li>목록에서 건을 열면 <b>개요 · 진행 · 이력</b>을 봅니다.</li>
+      <li>차량이 도착하면 <b>진행</b> 탭에서 필수 촬영 6컷을 올리고 <b>대리 인수 기록</b>을 남깁니다. (원격 인도에서 고객이 사진을 보고 승인할 수 있게 됩니다.)</li>
+    </ol>
+  </section>
+
+  <section class="card" id="faq">
+    <h2>자주 묻는 것</h2>
+    <h3>역할을 바꾸고 싶어요</h3>
+    <p>화면 맨 위 줄의 역할 이름을 눌러 바꿉니다. 역할이 하나뿐이면 바꾸는 메뉴가 보이지 않습니다.</p>
+    <h3>휴대폰에 앱처럼 설치할 수 있나요?</h3>
+    <p>네. 브라우저 메뉴의 "홈 화면에 추가"(또는 설치)를 누르면 앱처럼 쓸 수 있습니다.</p>
+    <h3>인터넷이 끊기면 어떻게 되나요?</h3>
+    <p>사진은 기기에 먼저 저장되고, 연결이 돌아오면 자동으로 올라갑니다. "저장 대기" 표시가 사라지면 완료된 것입니다.</p>
+    <h3>알림은 어디서 보나요?</h3>
+    <p>홈 위쪽의 <b>알림</b> 버튼에서 확인합니다.</p>
+    <p class="note">이 안내는 시연 버전 기준입니다. 서비스 정책이 확정되면 내용이 바뀔 수 있습니다.</p>
+  </section>
+</div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 // 시공업체 계정마다 화면이 다르다: 케어 건은 업체별, 대리 인수는 연결된 업체(A)만
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 (async () => {
   const b = await chromium.launch(); const errs = [];
@@ -9,7 +10,7 @@ const BASE = 'http://localhost:8000';
     for (const id of ['a', 'b', 'c']) {
       const p = await (await b.newContext({ viewport: { width: 1100, height: 900 } })).newPage(); p.on('pageerror', e => errs.push(e.message));
       await p.goto(BASE + '/demo.html?nosw=1'); await p.click('#load'); await p.waitForFunction(() => /채웠/.test(document.querySelector('#status').textContent));
-      await p.goto(BASE + '/shop.html?nosw=1'); await p.selectOption('#quick-login', id);
+      await loginAs(p, 'shop', id); await p.click('.vlp-nav-btn[data-tab=clients]');
       await p.waitForSelector('.sc-queues', { timeout: 10000 }); await p.waitForTimeout(1200);
       seen[id] = await p.evaluate(() => document.querySelector('#body-root').innerText.replace(/\s+/g, ' '));
     }

@@ -2,16 +2,17 @@
 const assert = require('node:assert/strict');
 const path = require('path');
 const { chromium } = require('playwright');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 const SHOTS = path.join(__dirname, 'screenshots');
 const WIDTHS = [[360, 740], [768, 1024], [1280, 800]];
 
 // 로그인 후 목록이 보이는 상태까지 (v6 데모 로그인)
 const LOGINS = {
-  customer: async (p) => { await p.selectOption('#quick-login-customer', { index: 1 }).catch(() => {}); await p.waitForTimeout(300); },
-  karmaster: async (p) => { await p.selectOption('#quick-login', { index: 1 }).catch(() => {}); await p.waitForTimeout(300); },
-  shop: async (p) => { await p.selectOption('#quick-login', { index: 1 }).catch(() => {}); await p.waitForTimeout(300); },
-  admin: async (p) => { await p.selectOption('#quick-login', { index: 1 }).catch(() => {}); await p.waitForTimeout(300); },
+  customer: async (p) => { await loginAs(p, 'customer', 1); await p.waitForTimeout(300); },
+  karmaster: async (p) => { await loginAs(p, 'karmaster', 'k1'); await p.waitForTimeout(300); },
+  shop: async (p) => { await loginAs(p, 'shop', 'a'); await p.waitForTimeout(300); },
+  admin: async (p) => { await loginAs(p, 'admin', 'admin_ulsan'); await p.waitForTimeout(300); },
   index: async () => {},
 };
 

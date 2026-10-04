@@ -1,17 +1,18 @@
 // 시공사 화면(구성안 5.3): 할 일 큐 · 견적 회신 · 입고 확인(필수 6컷·경로·주행거리 선택) · 작업 · 추가 금액 · 검수 요청 · 보완 · 수령 준비
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 (async () => {
   const b = await chromium.launch(); const errs = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage(); p.on('pageerror', e => errs.push(e.message));
     await p.goto(BASE + '/demo.html?nosw=1'); await p.click('#load'); await p.waitForFunction(() => /채웠/.test(document.querySelector('#status').textContent));
-    await p.goto(BASE + '/shop.html?nosw=1'); await p.selectOption('#quick-login', 'b');
+    await loginAs(p, 'shop', 'b'); await p.click('.vlp-nav-btn[data-tab=clients]');
     const phase = (ph) => p.waitForFunction((x) => { const c = document.querySelector('.vlp-shop-case'); return c && c.dataset.phase === x; }, ph, { timeout: 10000 });
     const st = (id) => p.evaluate((i) => Store.getCareOrder(i), id);
     await p.waitForSelector('.vlp-case-row'); const id = '20-202601-9002';
-    assert.ok(/견적 요청 2/.test(await p.locator('.sc-queues').innerText()));   // 시드: 9002 + 9017(길게 쓴 요청사항)
+    assert.ok(/견적 요청\s*2/.test(await p.locator('.sc-queues').innerText()));   // 시드: 9002 + 9017(길게 쓴 요청사항)
     await p.locator('.vlp-case-row[data-care-id="' + id + '"]').click(); await phase('REQUESTED');
     // 견적 회신
     await p.locator('.vlp-primary-hero').click(); await p.waitForSelector('#sc-price');

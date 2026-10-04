@@ -19,17 +19,23 @@ const BASE = 'http://localhost:8000';
 
     // 2) 겸임(박대표): 기본은 고객, ?role=shop이면 시공사
     await fresh('app.html?nosw=1'); await p.waitForSelector('#app-phone'); await typeLogin('010-3333-4402');
+    await p.waitForSelector('.ap-rolebtn'); assert.strictEqual(await p.locator('.ap-rolebtn').count(), 2, '겸임이면 역할 선택 화면이 나온다');
+    assert.ok(/고객/.test(await p.locator('.ap-rolebtn').first().innerText()) && /시공사/.test(await p.locator('.ap-rolebtn').nth(1).innerText()));
+    await p.click('.ap-rolebtn[data-role=customer]');
     await p.waitForURL(/customer\.html/); await p.waitForSelector('#vlp-rolebar .rb-switch');
-    assert.match(await p.innerText('#vlp-rolebar'), /고객 · 박대표/); console.log('✔ 겸임: 기본 고객, 전환 메뉴 있음');
+    assert.match(await p.innerText('#vlp-rolebar'), /고객 · 박대표/); console.log('✔ 겸임: 역할 선택 화면 → 고객, 전환 메뉴 있음');
+    // 비밀번호 칸·사용 방법 링크(시연에서는 검증 안 함)
+    await fresh('app.html?nosw=1'); await p.waitForSelector('#app-pw'); assert.strictEqual(await p.getAttribute('#app-pw', 'type'), 'password');
+    assert.strictEqual(await p.getAttribute('.ap-manual:not(.ap-reg)', 'href'), 'manual.html'); console.log('✔ 로그인: 비밀번호 칸·사용 방법 링크');
     await fresh('app.html?nosw=1&role=shop'); await typeLogin('010-3333-4402');
-    await p.waitForURL(/shop\.html/); await p.waitForSelector('.vlp-case-row'); assert.match(await p.innerText('#vlp-rolebar'), /시공사 · 울산 B샵/); console.log('✔ ?role=shop 우선');
+    await p.waitForURL(/shop\.html/); await p.waitForSelector('.vlp-app-shop .vlp-nav-btn'); assert.match(await p.innerText('#vlp-rolebar'), /시공사 · 울산 B샵/); console.log('✔ ?role=shop 우선');
 
     // 3) 마지막 역할 기억 + 세션이 있으면 로그인 없이 이동
     await p.goto(BASE + '/app.html?nosw=1'); await p.waitForURL(/shop\.html/); console.log('✔ 세션 유지 시 로그인 없이 마지막 역할(시공사)로');
     await p.goto(BASE + '/app.html?nosw=1&login=1'); await p.waitForSelector('#app-phone'); console.log('✔ ?login=1이면 로그인 화면');
 
     // 4) 단일 역할: 시공사 A샵, 카마스터 k1
-    await fresh('app.html?nosw=1'); await typeLogin('010-3333-4401'); await p.waitForURL(/shop\.html/); await p.waitForSelector('.vlp-case-row');
+    await fresh('app.html?nosw=1'); await typeLogin('010-3333-4401'); await p.waitForURL(/shop\.html/); await p.waitForSelector('.vlp-app-shop .vlp-nav-btn');
     assert.match(await p.innerText('#vlp-rolebar'), /시공사 · 울산 A샵/); assert.strictEqual(await p.locator('#vlp-rolebar .rb-switch').count(), 0);
     await fresh('app.html?nosw=1'); await typeLogin('010-2222-3301'); await p.waitForURL(/karmaster\.html/); await p.waitForSelector('.vlp-app');
     assert.match(await p.innerText('#vlp-rolebar'), /카마스터 · 김도현/); console.log('✔ 시공사·카마스터 단일 역할 진입');
@@ -55,7 +61,7 @@ const BASE = 'http://localhost:8000';
     await fresh('app.html?nosw=1&claim=1'); await p.waitForURL(/karmaster\.html\?claim=1/); await p.waitForSelector('.vlp-claim');
     console.log('✔ 안내 링크 ?claim=1 → 조회번호 화면');
     // 5d) 푸시 주소는 통합 앱을 거쳐 해당 역할·해당 건으로 열린다 (겸임이 다른 역할로 로그인해 있어도)
-    await fresh('app.html?nosw=1&role=shop'); await typeLogin('010-3333-4402'); await p.waitForURL(/shop\.html/); await p.waitForSelector('.vlp-case-row');
+    await fresh('app.html?nosw=1&role=shop'); await typeLogin('010-3333-4402'); await p.waitForURL(/shop\.html/); await p.waitForSelector('.vlp-app-shop .vlp-nav-btn');
     const url = await p.evaluate(() => VLP.pushLink.appUrl({ refType: 'contract', refId: 'c-1' }, 'customer'));
     assert.strictEqual(url, 'app.html?role=customer&open=contract%3Ac-1');
     assert.strictEqual(await p.evaluate(() => VLP.pushLink.appUrl({ refType: 'x', refId: '../a' }, 'zzz')), 'app.html?role=customer', '잘못된 값은 역할 첫 화면');

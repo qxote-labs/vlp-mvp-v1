@@ -44,12 +44,17 @@
       + '<p class="ap-sub">전화번호 하나로 들어오면 가진 역할로 이어져요. 역할이 둘 이상이면 화면 위쪽에서 바꿀 수 있어요.</p>'
       + '<label for="app-phone" class="ap-label">전화번호</label>'
       + '<input id="app-phone" type="tel" inputmode="numeric" placeholder="010-1234-5678" autocomplete="tel">'
+      + '<label for="app-pw" class="ap-label">비밀번호</label>'
+      + '<input id="app-pw" type="password" placeholder="비밀번호" autocomplete="current-password">'
+      + '<div class="hint ap-pwhint">시연 버전에서는 비밀번호를 확인하지 않아요. 서비스 정책이 정해지면 여기서 확인합니다.</div>'
       + '<div id="app-name-box" hidden><label for="app-name" class="ap-label">이름 <span class="hint">· 처음 오셨어요. 고객으로 시작해요</span></label><input id="app-name" type="text" placeholder="홍길동" autocomplete="name"></div>'
       + '<div class="ap-note" id="app-unknown" hidden>가입된 번호가 아니에요. 고객이라면 이름을 적고 계속을 눌러 주세요. 카마스터라면 아래 <b>조회번호로 계약 열기</b>를 눌러 주세요.</div>'
       + '<div class="vlp-error" role="alert" id="app-err" hidden></div>'
       + '<button class="btn btn-primary ap-go" id="app-go" disabled>계속</button>'
       + '<div class="ap-or"><span>또는</span></div>'
       + '<a class="ap-claim" id="app-claim" href="karmaster.html?claim=1"><span class="ap-ic" aria-hidden="true">🔑</span><span class="ap-claim-tx"><b>조회번호로 계약 열기</b><span>카마스터 · 아직 가입 전이어도, 고객이 보낸 안내의 조회번호로 계약을 확인할 수 있어요</span></span><span class="ap-chev" aria-hidden="true">›</span></a>'
+      + '<a class="ap-manual ap-reg" href="shop.html?register=1" id="app-shop-reg">🧰 시공업체 신규 등록</a>'
+      + '<a class="ap-manual" href="manual.html" target="_blank" rel="noopener">📖 사용 방법 보기</a>'
       + '<details class="ap-demo" id="app-demo"><summary>데모 계정으로 빠른 로그인</summary><select id="app-quick" aria-label="데모 계정"><option value="">계정 선택…</option>' + demoOptions().map(([p, t]) => '<option value="' + esc(p) + '">' + esc(t) + '</option>').join('') + '</select><div class="hint">본인인증 없이 들어가는 시연용 목록이에요.</div></details></section>';
     root.appendChild(w);
     const ph = w.querySelector('#app-phone'), nm = w.querySelector('#app-name'), box = w.querySelector('#app-name-box'), btn = w.querySelector('#app-go'), unk = w.querySelector('#app-unknown'), err = w.querySelector('#app-err');
@@ -60,7 +65,9 @@
     nm.addEventListener('input', sync);
     function submit(phone) {
       const roles = V.roles.forPhone(phone);
-      if (roles.length) { go(phone, roles); return; }
+      if (roles.length) { if (roles.length > 1 && !q.get('role')) { renderRolePicker(phone, roles); return; } go(phone, roles); return; }
+      const pend = g.Store.getShopByPhone && g.Store.getShopByPhone(phone); // 승인 대기·반려 업체는 상태 화면으로
+      if (pend && pend.verificationStatus !== 'approved') { try { sessionStorage.setItem('v6_shop_id', pend.id); } catch (e) { /* 무시 */ } g.location.href = 'shop.html'; return; }
       if (box.hidden) { box.hidden = false; unk.hidden = false; nm.focus(); sync(); return; } // 처음 보는 번호: 이름을 받는다
       g.Store.touchUserRole(phone, nm.value.trim(), 'customer');
       go(phone, V.roles.forPhone(phone));
@@ -68,7 +75,27 @@
     btn.addEventListener('click', () => submit(ph.value));
     [ph, nm].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter' && valid()) submit(ph.value); }));
     w.querySelector('#app-quick').addEventListener('change', (e) => { if (e.target.value) { ph.value = e.target.value; submit(e.target.value); } });
-    const pf = q.get('prefill'); if (pf) { ph.value = fmt(pf); const pn = q.get('prefillName'); if (pn && !V.roles.forPhone(ph.value).length) { box.hidden = false; nm.value = pn; } sync(); btn.focus(); } else ph.focus(); // 런처에서 전화번호를 채워 열기(계속은 직접 누른다)
+    const pf = q.get('prefill'); if (pf) { w.querySelector('#app-pw').value = 'demo1234'; ph.value = fmt(pf); const pn = q.get('prefillName'); if (pn && !V.roles.forPhone(ph.value).length) { box.hidden = false; nm.value = pn; } sync(); btn.focus(); } else ph.focus(); // 런처에서 전화번호를 채워 열기(계속은 직접 누른다)
+  }
+
+  // 역할이 둘 이상이면 로그인 직후 어떤 역할로 들어갈지 고른다(들어간 뒤에도 위 줄에서 바꿀 수 있다)
+  function renderRolePicker(phone, roles) {
+    root.innerHTML = '';
+    const last = V.roles.last();
+    const DESC = { customer: '내 차량 인도·신차케어 진행 확인, 인수·수령 확인', shop: '견적 회신, 입고·시공·검수 관리, 인도지 인수 기록', karmaster: '계약 승인, 출고 의뢰, 인도 확인' };
+    const w = document.createElement('div'); w.className = 'ap-wrap ap-one';
+    w.innerHTML = '<section class="ap-card"><h2>어떤 역할로 들어갈까요?</h2><p class="ap-sub">이 번호로 이용할 수 있는 역할이에요. 들어간 뒤에도 화면 위쪽에서 바꿀 수 있어요.</p><div class="ap-rolelist"></div><button type="button" class="btn btn-outline ap-back" id="app-back">← 다른 번호로 로그인</button></section>';
+    const list = w.querySelector('.ap-rolelist');
+    roles.forEach((r) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'ap-rolebtn'; b.dataset.role = r.role;
+      b.innerHTML = '<b></b><span class="ap-rname"></span><span class="ap-rdesc"></span>' + (r.role === last ? '<em class="ap-last">마지막으로 사용</em>' : '');
+      b.querySelector('b').textContent = (V.roles.LABEL && V.roles.LABEL[r.role]) || r.role; b.querySelector('.ap-rname').textContent = r.name || ''; b.querySelector('.ap-rdesc').textContent = DESC[r.role] || '';
+      b.addEventListener('click', () => V.roles.switchTo(r.role, phone, { open: q.get('open') }));
+      list.appendChild(b);
+    });
+    w.querySelector('#app-back').addEventListener('click', () => renderLogin());
+    root.appendChild(w);
+    const f = list.querySelector('.ap-rolebtn'); if (f) f.focus();
   }
 
   function start() {

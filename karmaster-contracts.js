@@ -194,7 +194,10 @@
         box.querySelector('.vlp-section-title span').textContent = title; box.querySelector('.vlp-count').textContent = String(list.length);
         list.forEach(({ c, x }) => {
           const r = el('<div class="vlp-today-row"><span class="vlp-today-text"><b></b><span class="hint"></span></span><button type="button" class="btn btn-sm vlp-today-act"></button></div>');
-          r.dataset.contractId = c.contractId; r.querySelector('.vlp-today-text b').textContent = c.vehicleModel || '차종 미입력'; r.querySelector('.vlp-today-text .hint').textContent = subOf(c, x);
+          r.dataset.contractId = c.contractId; r.querySelector('.vlp-today-text b').textContent = c.vehicleModel || '차종 미입력'; { // 둘째 줄: 원래 내용 → 계약번호 → 추가 정보
+            const h = r.querySelector('.vlp-today-text .hint'), t = subOf(c, x), k = t.indexOf(' · '), head = k < 0 ? t : t.slice(0, k), tail = k < 0 ? '' : t.slice(k);
+            h.textContent = head; if (c.serviceContractNo) { h.appendChild(document.createTextNode(' · ')); const no = document.createElement('span'); no.className = 'vlp-today-no'; no.textContent = c.serviceContractNo; h.appendChild(no); } if (tail) h.appendChild(document.createTextNode(tail));
+          }
           const b = r.querySelector('.vlp-today-act'); b.textContent = x.todo; b.setAttribute('aria-label', x.todo + ' · ' + (c.vehicleModel || '차종 미입력'));
           b.addEventListener('click', () => { pendingOpen = ['검토', '출고 의뢰', '인도 확인', '지연 안내'].includes(x.todo) ? c.contractId : null; V.caseView.setTab(c.contractId, 'overview'); route.set(c.contractId); });
           box.appendChild(r);
@@ -202,9 +205,11 @@
         listPane.appendChild(box);
       };
       const who = (c) => (c.customerDisplayName ? '고객 ' + c.customerDisplayName : '고객 정보 없음');
-      sec('승인 대기', by('pending'), (c) => '계약 · ' + who(c), 'wait');
-      sec('출고 의뢰', by('order'), (c) => '계약 · ' + who(c), 'info');
-      sec('인도 확인', arrived, (c) => who(c) + ' · 도착', 'urgent');
+      const hm = (iso) => { const d = new Date(iso); if (isNaN(d)) return ''; const p = (n) => String(n).padStart(2, '0'); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+      const arrivedAt = (x) => { const st = ((x.d && x.d.steps) || []).find((q) => q.state === 'DELIVERED'); return st && st.at ? hm(st.at) : ''; };
+      sec('승인 대기', by('pending'), (c) => who(c) + (c.expiresAt ? ' · 승인 기한 ' + U.remaining(c.expiresAt) : ''), 'wait');
+      sec('출고 의뢰', by('order'), (c) => who(c) + (c.destinationType && U.DEST_LABEL[c.destinationType] ? ' · ' + U.DEST_LABEL[c.destinationType] : ''), 'info');
+      sec('인도 확인', arrived, (c, x) => who(c) + ' · 도착' + (arrivedAt(x) ? ' ' + arrivedAt(x) : ''), 'urgent');
       sec('배송 중', moving, (c, x) => (x.d ? (V.statusMap.LABEL || {})[x.d.displayState] || '' : '') || '배송 중', 'info');
       sec('지연 후보', by('delay'), () => '지연 중 · 고객 안내가 필요해요', 'urgent');
       if (!all.some(({ x }) => x.todo)) listPane.appendChild(el('<div class="vlp-todo-none"><span class="vlp-todo-ok" aria-hidden="true">✓</span><div><b>오늘 처리할 일이 없어요</b><span class="hint">새 계약이 오면 알려 드려요.</span></div></div>'));

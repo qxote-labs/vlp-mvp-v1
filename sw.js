@@ -7,11 +7,11 @@
  *     - POST 등 명령은 절대 캐시·재생하지 않는다. 오프라인 쓰기는 IndexedDB 큐(PWA-18)가 맡는다.
  *     - 로그아웃 시 화면이 {type:'CLEAR_API_CACHE'}를 보내 조회 캐시를 비운다.
  */
-const VERSION = 'v49';
+const VERSION = 'v62';
 const SHELL = 'vlp-shell-' + VERSION;
 const API = 'vlp-api-' + VERSION;
 const PRECACHE = [
-  'index.html', 'app.html', 'customer.html', 'karmaster.html', 'shop.html', 'admin.html', 'supervisor.html',
+  'index.html', 'app.html', 'manual.html', 'customer.html', 'karmaster.html', 'shop.html', 'admin.html', 'supervisor.html',
   'app.css', 'vlp-config.js', 'vlp-ops.js', 'status-map.js', 'api-facade.js', 'adapters/mock.js', 'adapters/http.js', 'vlp-boot.js',
   'vlp-rolebar.js', 'vlp-roles.js', 'app-entry.js', 'store.js', 'care-api.js', 'customer.js', 'karmaster.js', 'shop.js', 'admin.js',
   'push-link.js', 'vlp-screens.js', 'vlp-delivery.js', 'customer-care.js', 'customer-contracts.js', 'karmaster-contracts.js', 'admin-collection.js', 'upload-queue.js', 'vlp-chat.js', 'vlp-case.js', 'admin-console.js', 'admin-conversations.js', 'vlp-capture.js', 'vlp-handover.js', 'shop-handover.js', 'shop-care.js',

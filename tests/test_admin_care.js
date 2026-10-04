@@ -1,6 +1,7 @@
 // 관리자 신차케어: 이의 중재 메뉴(보완 대기 / 운영자 중재 필요 구분) · 중재 완료 · 입고 경로·청구 표시
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 (async () => {
   const b = await chromium.launch(); const errs = [];
@@ -9,7 +10,7 @@ const BASE = 'http://localhost:8000';
     await p.goto(BASE + '/demo.html?nosw=1'); await p.click('#load'); await p.waitForFunction(() => /채웠/.test(document.querySelector('#status').textContent));
     const id = '20-202601-9001';
     // 시공 완료 → 검수 요청(추가 금액) → 이의 2건(보완 / 중재) 상황을 만든다
-    await p.goto(BASE + '/supervisor.html'); await p.waitForSelector('#quick-login'); await p.selectOption('#quick-login', 'admin_super');
+    await loginAs(p, 'supervisor', 'admin_super', '');
     await p.evaluate((i) => { Store.setCareShopStage(i, '최종검수'); Store.setCareCharged(i, 200000, '후면 PPF'); Store.requestCareInspection(i); Store.raiseCareDispute(i, '문 하단 기포', { escalated: false }); }, id);
     await p.reload(); await p.waitForSelector('.vlp-adm-nav-btn[data-menu=dispute]');
     assert.ok(/●3/.test(await p.locator('.vlp-adm-nav-btn[data-menu=dispute]').innerText()), '시드 2건(9006 보완·9007 중재) + 방금 만든 1건');

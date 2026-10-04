@@ -1,13 +1,13 @@
 // 구매자 신차케어 1차 이식: 신청 → 견적 → 계약 → 입고·작업·검수 → 출차 승인 → 수령 → 정찰제 확인 → 평가 (VLP.api.care 경유)
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } }); const errs = [];
   try {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(e.message));
-    await p.goto(BASE + '/customer.html?nosw=1');
-    await p.selectOption('#quick-login-customer', { index: 1 });
+    await loginAs(p, 'customer', 1);
     const reload = async () => { await p.evaluate(() => { const a = document.querySelector('.vlp-app-customer'); if (a && a.__reload) a.__reload(); }); await p.waitForTimeout(350); };
     // Store를 바꾸면 화면이 다시 그려질 수 있으므로, 기대하는 단계가 화면에 반영될 때까지 기다린 뒤 다음 조작을 한다
     const adv = async (fn, arg, phase) => { await p.evaluate(fn, arg); await reload(); if (phase) { await p.waitForFunction((ph) => { const c = document.querySelector('.vlp-care-case'); return c && c.dataset.phase === ph; }, phase, { timeout: 8000 }); await p.waitForTimeout(250); } };

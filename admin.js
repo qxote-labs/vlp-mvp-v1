@@ -37,32 +37,27 @@ function loginPhoneFormat(raw) {
 // 전화번호로 로그인한다.
 function renderLogin() {
   const modeLabel = ADMIN_MODE === 'super' ? '슈퍼바이저' : '커뮤니티관리자';
-  const candidates = Store.getAdmins().filter(a => a.adminScope === ADMIN_MODE);
-  const wrap = el(`<div style="max-width:400px;margin:60px auto;text-align:center;">
-    <h2 style="font-size:22px;">${modeLabel} 로그인</h2>
-    <div class="sub" style="margin-bottom:20px;">등록된 ${modeLabel} 연락처로 로그인합니다.</div>
-    <input id="login-phone" type="tel" placeholder="010-1234-5678" style="margin-bottom:8px;" autocomplete="off">
-    <input type="password" placeholder="비밀번호 (추후 지원 예정)" disabled style="margin-bottom:8px;">
-    <div class="hint" id="login-hint" style="margin-bottom:10px;min-height:16px;"></div>
-    <button class="btn btn-primary" style="width:100%;" id="login-submit">로그인</button>
-    <div style="margin-top:28px;padding-top:16px;border-top:1px solid #ddd;text-align:left;">
-      <label style="font-size:12px;color:#595959;">데모 계정으로 빠른 로그인</label>
-      <select id="quick-login" style="margin-top:6px;">
-        <option value="">계정 선택…</option>
-        ${candidates.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
-      </select>
-    </div>
+  const wrap = el(`<div class="ap-wrap ap-one">
+    <section class="ap-card"><h2>${modeLabel} 로그인</h2>
+      <p class="ap-sub">등록된 ${modeLabel} 연락처로 로그인합니다.</p>
+      <label for="login-phone" class="ap-label">전화번호</label>
+      <input id="login-phone" type="tel" inputmode="numeric" placeholder="010-1234-5678" autocomplete="tel">
+      <label for="login-pw" class="ap-label">비밀번호</label>
+      <input id="login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+      <div class="hint ap-pwhint">시연 버전에서는 비밀번호를 확인하지 않아요. 서비스 정책이 정해지면 여기서 확인합니다.</div>
+      <div class="hint" id="login-hint" style="margin-bottom:10px;min-height:16px;"></div>
+      <button class="btn btn-primary ap-go" id="login-submit">로그인</button>
+    </section>
   </div>`);
   const phoneEl = wrap.querySelector('#login-phone'), hintEl = wrap.querySelector('#login-hint'), submitBtn = wrap.querySelector('#login-submit');
   phoneEl.addEventListener('input', () => { phoneEl.value = loginPhoneFormat(phoneEl.value); hintEl.textContent = ''; });
   phoneEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitBtn.click(); });
-  { const pf = new URLSearchParams(location.search).get('prefill'); if (pf) { phoneEl.value = loginPhoneFormat(pf); submitBtn.focus(); } } // 런처에서 전화번호를 채워 열기(확인 버튼은 직접 누른다)
+  { const pf = new URLSearchParams(location.search).get('prefill'); if (pf) { phoneEl.value = loginPhoneFormat(pf); wrap.querySelector('#login-pw').value = 'demo1234'; submitBtn.focus(); } } // 런처에서 번호·비밀번호를 채워 열기(확인 버튼은 직접 누른다, 데모 전용)
   submitBtn.addEventListener('click', () => {
     const admin = Store.getAdminByPhone(phoneEl.value);
     if (!admin || admin.adminScope !== ADMIN_MODE) { hintEl.textContent = '등록되지 않은 연락처입니다. 번호를 다시 확인해 주세요.'; return; }
     tryLogin(admin.id);
   });
-  wrap.querySelector('#quick-login').addEventListener('change', (e) => { if (e.target.value) tryLogin(e.target.value); });
   return wrap;
 }
 function tryLogin(id) { loggedInAdminId = id; sessionStorage.setItem('v6_admin_id', id); render(); }

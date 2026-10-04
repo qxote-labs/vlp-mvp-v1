@@ -19,9 +19,9 @@
        구매자를 지원하는 파트너/제공자로서 그 아래 대등하게 배치한다. -->
   <!-- 시연: 이 화면에서 데모 데이터를 채우고 바로 각 화면으로 들어간다(목 데이터, 이 브라우저에만 저장). -->
   <div class="frame" id="demo-box" style="padding:20px 24px;border-width:2px;border-color:#0b6e8a;margin-bottom:16px;">
-    <div style="font-weight:800;font-size:17px;margin-bottom:4px;">▶ 시연 시작 (고객 10 · 카마스터 3 · 시공사 · 관리자, 단계별 건 15개)</div>
+    <div style="font-weight:800;font-size:17px;margin-bottom:4px;">▶ 시연 시작 (고객 10 · 카마스터 3 · 시공사 · 관리자, 단계별 건 16개)</div>
     <div class="sub" style="margin-bottom:10px;">데이터는 이 브라우저에만 저장됩니다(서버·다른 기기와 공유 안 됨). 처음 열면 자동으로 채워지고, 다시 채우려면 아래 버튼을 누르세요. 바로가기는 같은 브라우저에서 열어 주세요.</div>
-    <button class="btn btn-primary btn-auto" id="demo-load" type="button">1. 데모 데이터 불러오기</button>
+    <button class="btn btn-primary btn-auto" id="demo-load" type="button">데모 데이터 초기화 (처음 상태로 다시 채움)</button>
     <span class="hint" id="demo-status" role="status" style="margin-left:8px;"></span>
     <a href="demo.html#acct-guide" target="_blank" style="display:inline-block;margin-left:8px;font-size:13px;font-weight:700;">▶ 계정별 확인 안내 (누구로 들어가 무엇을 보나)</a>
     <div class="hint" style="margin-top:10px;">미가입 카마스터(아래 목록의 "미가입 카마스터") 연락처 010-9999-0009 · 조회번호 <b class="vlp-mono" id="d-token">(데이터를 불러오면 표시)</b></div>
@@ -32,8 +32,9 @@
   </a></div>
   <div class="frame" id="acct-box" style="min-height:0;padding:16px 24px;margin-bottom:16px;">
     <div style="font-weight:800;font-size:15px;margin-bottom:2px;">👤 계정으로 로그인해 보기 <span style="font-size:12px;font-weight:600;color:#666;">· 위 통합 앱 로그인으로 가는 바로가기</span></div>
-    <div class="hint" style="margin-bottom:8px;">누르면 그 계정의 전화번호가 입력된 로그인 화면이 새 창으로 열립니다. [계속]/[로그인]만 누르면 됩니다(번호·카마스터 비밀번호는 채워져 있습니다). 계정별로 무엇을 볼지는 "계정별 확인 안내"를 보세요.</div>
+    <div class="hint" style="margin-bottom:8px;">이름을 누르면 그 계정의 전화번호가 입력된 로그인 화면이 새 창으로 열립니다. [계속]/[로그인]만 누르면 됩니다(번호·카마스터 비밀번호는 채워져 있습니다). ⓘ를 누르면 그 계정에서 무엇을 볼지 나옵니다.</div>
     <div id="acct-quick"></div>
+    <div id="acct-info" hidden style="margin-top:8px;padding:12px 14px;border:1px solid #cfe0e6;border-radius:10px;background:#f4f9fb;"></div>
   </div>
   <!-- user-account-role-model-spec.md 1.6/4.4절: 배송기사 화면은 [PWA-01]에서 제거됐고, 관리자는 셀프 온보딩 대상이 아니라 시작 화면 카드에 아예 올리지
        않는다 — 기능은 그대로 유지하되(URL로는 계속 접근 가능) 일반 사용자 진입 흐름에서만 뺀 것이다.
@@ -81,17 +82,37 @@
     // 계정 바로가기: 누르면 그 계정의 전화번호가 입력된 로그인 화면이 열린다(실제처럼 [계속]/[로그인]을 직접 누른다)
     (function () {
       const box = $('acct-quick'), K = A.kms, C = A.custs;
-      const chip = (href, text) => '<a href="' + href + '" target="_blank" style="display:inline-block;margin:0 6px 6px 0;padding:7px 12px;border-radius:999px;border:1px solid #0b6e8a;font-size:13px;text-decoration:none;background:#fff;color:#0b6e8a;">' + text + '</a>';
+      const G = window.VLP_DEMO_GUIDE || { customers: [], karmasters: [], shops: [], admins: [] };
+      const esc = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      // 계정별 안내: 그 계정의 건과 확인 포인트 (demo-guide.js 와 같은 내용)
+      const infoOf = (kind, key) => {
+        if (kind === 'c') return G.customers.find((x) => x.phone === key);
+        if (kind === 'k') return G.karmasters.find((x) => x.phone === key);
+        if (kind === 's') return G.shops.find((x) => x.name.indexOf(key) >= 0);
+        return G.admins[0];
+      };
+      const chip = (href, text, kind, key) => '<span style="display:inline-block;margin:0 6px 6px 0;white-space:nowrap;"><a href="' + href + '" target="_blank" style="display:inline-block;padding:7px 12px;border-radius:999px 0 0 999px;border:1px solid #0b6e8a;border-right:0;font-size:13px;text-decoration:none;background:#fff;color:#0b6e8a;">' + text + '</a><button type="button" class="acct-i" data-k="' + kind + '" data-v="' + esc(key) + '" data-n="' + esc(text) + '" title="이 계정에서 볼 것" aria-label="' + esc(text) + ' 안내 보기" style="padding:7px 9px;border-radius:0 999px 999px 0;border:1px solid #0b6e8a;font-size:12px;background:#e4eef2;color:#0b6e8a;cursor:pointer;">ⓘ</button></span>';
       const grp = (t, h) => '<div style="font-size:12px;font-weight:700;color:#444;margin:8px 0 4px;">' + t + '</div>' + h;
-      const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
       const PIN = { k1: '1111', k2: '2222', k3: '3333' }; // 데모 카마스터 비밀번호(번호·비밀번호가 채워진 채로 열림)
       const app = (ph, nm) => 'app.html?login=1&prefill=' + encodeURIComponent(ph) + (nm ? '&prefillName=' + encodeURIComponent(nm) : '');
       const custs = Object.keys(C).map((k) => C[k]).concat([A.cust, A.cust2]).filter((c, i, arr) => arr.findIndex((x) => x.phone === c.phone) === i);
       box.innerHTML =
-        grp('고객 (' + custs.length + '명)', custs.map((c) => chip(app(c.phone, c.name), esc(c.name))).join('')) +
-        grp('카마스터 (' + Object.keys(K).length + '명)', Object.keys(K).map((k) => chip('karmaster.html?prefill=' + encodeURIComponent(K[k].phone) + '&prefillPin=' + (PIN[k] || ''), esc(K[k].name.replace(' 카마스터', '')))).join('') + chip('karmaster.html?demoClaim=1', '미가입 카마스터(조회번호)')) +
-        grp('시공사', [['울산 A샵', '010-3333-4401'], ['울산 B샵', '010-3333-4402'], ['울산 C샵', '010-3333-4403']].map((x) => chip(app(x[1]), x[0])).join('')) +
-        grp('관리자', chip('admin.html?prefill=010-9000-0002', '이지역 (커뮤니티관리자)') + chip('supervisor.html?prefill=010-9000-0001', '박총괄 (슈퍼바이저)'));
+        grp('고객 (' + custs.length + '명)', custs.map((c) => chip(app(c.phone, c.name), esc(c.name), 'c', c.phone)).join('')) +
+        grp('카마스터 (' + Object.keys(K).length + '명)', Object.keys(K).map((k) => chip('karmaster.html?prefill=' + encodeURIComponent(K[k].phone) + '&prefillPin=' + (PIN[k] || ''), esc(K[k].name.replace(' 카마스터', '')), 'k', K[k].phone)).join('') + chip('karmaster.html?demoClaim=1', '미가입 카마스터(조회번호)', 'k', '010-9999-0009')) +
+        grp('시공사', [['울산 A샵', '010-3333-4401', 'A샵'], ['울산 B샵', '010-3333-4402', 'B샵'], ['울산 C샵', '010-3333-4403', 'C샵']].map((x) => chip(app(x[1]), x[0], 's', x[2])).join('')) +
+        grp('관리자', chip('admin.html?prefill=010-9000-0002', '이지역 (커뮤니티관리자)', 'a', '') + chip('supervisor.html?prefill=010-9000-0001', '박총괄 (슈퍼바이저)', 'a', ''));
+      const panel = $('acct-info');
+      box.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('.acct-i'); if (!b) return;
+        const open = panel.dataset.for === b.dataset.n + b.dataset.v && !panel.hidden;
+        if (open) { panel.hidden = true; return; }
+        const g = infoOf(b.dataset.k, b.dataset.v);
+        panel.dataset.for = b.dataset.n + b.dataset.v;
+        panel.innerHTML = '<div style="font-weight:800;margin-bottom:4px;">' + esc(b.dataset.n) + ' — 이 계정에서 볼 것</div>' +
+          (g ? ('<div class="hint" style="margin-bottom:6px;">로그인: 이름 버튼을 눌러 열린 화면에서 확인 버튼만 누르면 됩니다' + (g.pin && /^\d+$/.test(g.pin) ? ' (비밀번호 ' + esc(g.pin) + ' 자동 입력)' : '') + '</div>' +
+            '<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tbody>' + (g.cases || []).map((r) => '<tr><td style="padding:4px 8px 4px 0;vertical-align:top;font-weight:700;white-space:nowrap;">' + esc(r[0]) + '</td><td style="padding:4px 8px 4px 0;vertical-align:top;white-space:nowrap;">' + esc(r[1]) + '</td><td style="padding:4px 0;vertical-align:top;color:#444;">' + esc(r[2]) + '</td></tr>').join('') + '</tbody></table>') : '<div class="hint">안내 정보가 없습니다.</div>');
+        panel.hidden = false;
+      });
     })();
     // 이 브라우저에서 처음 열면 자동으로 채운다(주소에 ?noseed=1 이 있으면 건너뜀)
     let seeded = false; try { seeded = localStorage.getItem('vlp_demo_seeded') === '1'; } catch (e) { /* 무시 */ }

@@ -1,12 +1,13 @@
 // 오프라인 배너: 오프라인 안내 + 업로드 대기 건수 + 연결되면 자동 전송
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext(); const errs = [];
   try {
     const page = await ctx.newPage(); page.on('pageerror', e => errs.push(e.message));
-    await page.goto(BASE + '/customer.html?nosw=1'); await page.waitForSelector('#vlp-rolebar');
+    await loginAs(page, 'customer', 1); await page.waitForSelector('#vlp-rolebar');
     await ctx.setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
     await page.waitForSelector('#vlp-rolebar.is-alert .rb-status');

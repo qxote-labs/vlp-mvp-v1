@@ -47,5 +47,15 @@
     return true;
   }
 
-  V.roles = { forPhone, switchTo, LABEL, last() { try { return localStorage.getItem('vlp_last_role'); } catch (e) { return null; } } };
+  // 역할 화면(시공사·카마스터·구매자)의 자체 로그인 대신 통합 로그인(app.html)으로 보낸다. 로그인 화면은 한 곳만 둔다.
+  // 런처에서 채워 온 prefill 값은 이어서 넘긴다. (역할 화면에는 별도 로그인 UI가 없다)
+  function loginRedirect(role) {
+    const q = new URLSearchParams(g.location.search);
+    const p = new URLSearchParams({ login: '1', role });
+    ['prefill', 'prefillName'].forEach((k) => { if (q.get(k)) p.set(k, q.get(k)); });
+    g.location.replace('app.html?' + p.toString());
+    return true;
+  }
+
+  V.roles = { forPhone, switchTo, loginRedirect, LABEL, last() { try { return localStorage.getItem('vlp_last_role'); } catch (e) { return null; } } };
 })(typeof window !== 'undefined' ? window : globalThis);

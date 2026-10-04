@@ -1,6 +1,7 @@
 // 시드 사례(store.js CARE_DEMO_GUIDE) 전수 검증: 15단계가 모두 시드에 있고, 단계·분기마다 고객·시공사·관리자 화면이 맞게 보인다.
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 const EXPECT = { // id → [단계, 시공사]
   '20-202601-9001': ['WORKING', 'a'], '20-202601-9002': ['REQUESTED', 'b'], '20-202601-9003': ['CONFIRMED', 'c'],
@@ -36,7 +37,7 @@ const EXPECT = { // id → [단계, 시공사]
 
     // 2) 고객 화면: 윤서아(정찰제 불일치) · 최수민(추가 금액+포인트) · 정하늘(이의 보완·중재)
     const openCare = async (p, phone, id) => {
-      await p.goto(BASE + '/customer.html?nosw=1'); await p.evaluate(() => sessionStorage.clear()); await p.reload(); await p.selectOption('#quick-login-customer', phone);
+      await loginAs(p, 'customer', phone);
       await p.locator('.vlp-nav-btn[data-tab=care]').click(); await p.locator('[data-care-id="' + id + '"]').first().click();
       await p.waitForFunction((i) => { const c = document.querySelector('.vlp-care-case'); return c && c.dataset.careId === i; }, id);
     };
@@ -56,7 +57,7 @@ const EXPECT = { // id → [단계, 시공사]
 
     // 3) 시공사 화면
     const shopOpen = async (p, shop, id) => {
-      await p.goto(BASE + '/shop.html?nosw=1'); await p.evaluate(() => sessionStorage.clear()); await p.reload(); await p.selectOption('#quick-login', shop); await p.waitForSelector('.vlp-case-row');
+      await loginAs(p, 'shop', shop); await p.click('.vlp-nav-btn[data-tab=clients]'); await p.waitForSelector('.vlp-case-row');
       await p.locator('.vlp-case-row[data-care-id="' + id + '"]').click();
       await p.waitForFunction((i) => { const c = document.querySelector('.vlp-shop-case'); return c && c.dataset.careId === i; }, id);
     };
@@ -89,7 +90,7 @@ const EXPECT = { // id → [단계, 시공사]
     assert.strictEqual(r2, 'DISPUTED'); await pm.close(); console.log('✔ 정찰제 불일치 제보 → DISPUTED');
     // 4) 관리자: 케어 전체·이의 큐
     const ad = await prime(); await ad.setViewportSize({ width: 1440, height: 900 });
-    await ad.goto(BASE + '/supervisor.html'); await ad.waitForSelector('#quick-login'); await ad.selectOption('#quick-login', 'admin_super');
+    await loginAs(ad, 'supervisor', 'admin_super', '');
     await ad.waitForSelector('.vlp-adm-nav-btn[data-menu=dispute]'); assert.ok(/●2/.test(await text(ad, '.vlp-adm-nav-btn[data-menu=dispute]')));
     await ad.click('.vlp-adm-nav-btn[data-menu=care]'); await ad.waitForSelector('#admin-care-list tr.clickable');
     assert.strictEqual(await ad.locator('#admin-care-list tr.clickable').count(), 20, '전체 케어 20건');

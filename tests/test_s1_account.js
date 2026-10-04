@@ -1,6 +1,7 @@
 // S1 확인번호·휴면·알림: 마지막 계약 종료 후 유예 기간이 지나면 접근이 닫히고, 새 조회번호로 다시 시작하면 이전 기록은 보이지 않는다. 앱 안 알림(고객·카마스터)이 표시된다.
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 const PH = '010-9999-0020', PIN = '123456', PIN2 = '654321';
 (async () => {
@@ -12,12 +13,10 @@ const PH = '010-9999-0020', PIN = '123456', PIN2 = '654321';
   try {
     const customer = await context.newPage(); track(customer, 'customer');
     const km = await context.newPage(); track(km, 'karmaster');
-    await customer.goto(BASE + '/customer.html?nosw=1');
-    await customer.fill('#login-name', '이영희'); await customer.fill('#login-phone', '01011110002'); await customer.click('#login-submit');
+    await loginAs(customer, 'customer', { name: '이영희', phone: '010-1111-0002' });
     const mk = (no) => customer.evaluate(async ({ no, ph }) => { const c = await VLP.api.contracts.create({ manufacturerContractNo: no, vehicleModel: '스포티지', carmasterPhone: ph }); return c.claimToken; }, { no, ph: PH });
     const t1 = await mk('AC-1');
-    await km.goto(BASE + '/karmaster.html?nosw=1');
-    await km.click('text=비가입자이신가요?'); await km.waitForSelector('#cl-phone');
+    await km.goto(BASE + '/karmaster.html?nosw=1&claim=1'); await km.waitForSelector('#cl-phone');
     await km.fill('#cl-phone', PH); await km.fill('#cl-token', t1); await km.fill('#cl-pin', PIN); await km.click('#cl-submit');
     await km.waitForSelector('#cl-pin2:visible'); await km.fill('#cl-pin2', PIN); await km.click('#cl-submit');
     await km.waitForSelector('.vlp-app-karmaster .vlp-today-row');
@@ -40,8 +39,7 @@ const PH = '010-9999-0020', PIN = '123456', PIN2 = '654321';
     ok('마지막 계약 종료 후 31일 → 확인번호 로그인 거절(409)');
     // 새 조회번호로 다시 시작: 새 확인번호, 이전 계약 보이지 않음
     const t2 = await mk('AC-2');
-    await km.goto(BASE + '/karmaster.html?nosw=1'); await km.evaluate(() => sessionStorage.clear()); await km.goto(BASE + '/karmaster.html?nosw=1');
-    await km.click('text=비가입자이신가요?'); await km.waitForSelector('#cl-phone');
+    await km.goto(BASE + '/app.html?login=1&nosw=1'); await km.evaluate(() => sessionStorage.clear()); await km.goto(BASE + '/karmaster.html?nosw=1&claim=1'); await km.waitForSelector('#cl-phone');
     await km.fill('#cl-phone', PH); await km.fill('#cl-token', t2); await km.fill('#cl-pin', PIN2); await km.click('#cl-submit');
     await km.waitForSelector('#cl-pin2:visible'); await km.fill('#cl-pin2', PIN2); await km.click('#cl-submit');
     await km.waitForSelector('.vlp-app-karmaster .vlp-today-row');

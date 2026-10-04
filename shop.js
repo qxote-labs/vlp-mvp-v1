@@ -4,7 +4,7 @@
  * 않는다), 기존 시공 흐름(입고완료→작업중→최종검수→고객검수→출차→2차배송)을 그대로 이어간다.
  * 카마스터는 이 흐름에 전혀 관여하지 않으므로 고객 검수는 오너 단독 확인으로 진행된다. */
 let loggedInShopId = sessionStorage.getItem('v6_shop_id') || null;
-let showRegister = false;
+let showRegister = new URLSearchParams(location.search).get('register') === '1'; // app.html '신규 업체 등록' 링크
 
 let _rendering = false;
 function render() { if (_rendering) return; _rendering = true; try { _renderInner(); } finally { _rendering = false; } }
@@ -13,6 +13,7 @@ function _renderInner() {
   const root = document.getElementById('body-root');
   root.innerHTML = '';
   if (!loggedInShopId) {
+    if (!showRegister && VLP.roles.loginRedirect('shop')) return;
     VLP.rolebar.set({ role: 'shop', name: '', phone: '', action: null });
     root.appendChild(showRegister ? renderRegister() : renderLogin());
     return;
@@ -33,36 +34,7 @@ function loginPhoneFormat(raw) {
 
 // 실제 서비스와 동일하게 사업자 연락처 입력으로 로그인하는 화면을 기본으로 두고, 테스트 시 번거로움을
 // 줄이기 위해 평소엔 접혀 있는 "빠른 로그인" 드롭다운만 아래에 덧붙인다.
-function renderLogin() {
-  const wrap = el(`<div style="max-width:400px;margin:60px auto;text-align:center;">
-    <h2 style="font-size:22px;">시공업체 로그인</h2>
-    <div class="sub" style="margin-bottom:20px;">등록된 사업자 연락처로 로그인합니다.</div>
-    <input id="login-phone" type="tel" placeholder="010-1234-5678" style="margin-bottom:8px;" autocomplete="off">
-    <input type="password" placeholder="비밀번호 (추후 지원 예정)" disabled style="margin-bottom:8px;">
-    <div class="hint" id="login-hint" style="margin-bottom:10px;min-height:16px;"></div>
-    <button class="btn btn-primary" style="width:100%;" id="login-submit">로그인</button>
-    <div class="btn-row" style="margin-top:10px;">
-      <button class="btn btn-outline" style="width:auto;padding:10px 18px;" onclick="toggleRegister()">아직 계정이 없으신가요? 신규 업체 등록하기</button>
-    </div>
-    <div style="margin-top:28px;padding-top:16px;border-top:1px solid #ddd;text-align:left;">
-      <label style="font-size:12px;color:#595959;">데모 계정으로 빠른 로그인</label>
-      <select id="quick-login" style="margin-top:6px;">
-        <option value="">계정 선택…</option>
-        ${Store.getShops().map(s => `<option value="${s.id}">${s.name} · ${s.phone}</option>`).join('')}
-      </select>
-    </div>
-  </div>`);
-  const phoneEl = wrap.querySelector('#login-phone'), hintEl = wrap.querySelector('#login-hint'), submitBtn = wrap.querySelector('#login-submit');
-  phoneEl.addEventListener('input', () => { phoneEl.value = loginPhoneFormat(phoneEl.value); hintEl.textContent = ''; });
-  phoneEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitBtn.click(); });
-  submitBtn.addEventListener('click', () => {
-    const shop = Store.getShopByPhone(phoneEl.value);
-    if (!shop) { hintEl.textContent = '등록되지 않은 연락처입니다. 번호를 다시 확인해 주세요.'; return; }
-    tryLogin(shop.id);
-  });
-  wrap.querySelector('#quick-login').addEventListener('change', (e) => { if (e.target.value) tryLogin(e.target.value); });
-  return wrap;
-}
+function renderLogin() { return el('<div class="hint" style="text-align:center;margin:60px 0;">로그인 화면으로 이동합니다…</div>'); }
 function tryLogin(id) {
   loggedInShopId = id; sessionStorage.setItem('v6_shop_id', id);
   const shop = Store.getShop(id);

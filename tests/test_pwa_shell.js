@@ -16,8 +16,9 @@ const BASE = 'http://localhost:8000';
   try {
     // 1) manifest 3종 + 아이콘
     for (const [html, unit] of [['customer', 'customer'], ['karmaster', 'partner'], ['shop', 'partner'], ['admin', 'admin']]) {
-      await page.goto(`${BASE}/${html}.html`);
-      const href = await page.getAttribute('link[rel=manifest]', 'href');
+      await page.goto(`${BASE}/app.html?login=1`);
+      const htmlText = await (await page.request.get(`${BASE}/${html}.html`)).text(); // 역할 화면은 로그인 전에 통합 로그인으로 가므로 HTML 머리만 본다
+      const href = (htmlText.match(/<link rel="manifest" href="([^"]+)"/) || [])[1];
       assert.equal(href, `manifest-${unit}.webmanifest`, html);
       const m = await (await page.request.get(`${BASE}/${href}`)).json();
       assert.ok(m.name && m.short_name && m.start_url && m.scope, html + ' 기본 필드');
@@ -25,12 +26,13 @@ const BASE = 'http://localhost:8000';
       const sizes = m.icons.map(i => i.sizes + ':' + i.purpose);
       assert.ok(sizes.includes('192x192:any') && sizes.includes('512x512:any') && sizes.includes('512x512:maskable'), html + ' 아이콘 ' + sizes);
       for (const ic of m.icons) { const r = await page.request.get(`${BASE}/${ic.src}`); assert.equal(r.status(), 200); assert.match(r.headers()['content-type'], /image\/png/); }
-      assert.ok(await page.getAttribute('meta[name=viewport]', 'content'));
+      assert.ok(/<meta name="viewport"/.test(htmlText));
     }
     console.log('1) manifest 3종(고객·파트너·관리자)과 아이콘 유효, viewport 메타 있음');
 
     // 2) 서비스 워커 활성 + 설치 가능 판정
-    await page.goto(`${BASE}/customer.html`);
+    await page.goto(`${BASE}/app.html?login=1`);
+    await page.evaluate(() => { sessionStorage.clear(); sessionStorage.setItem('v6_customer_logged', '1'); sessionStorage.setItem('v6_customer_name', '김민준'); sessionStorage.setItem('v6_customer_phone', '010-7777-1000'); sessionStorage.setItem('v6_view', 'history'); sessionStorage.setItem('v6_shop_id', 'a'); sessionStorage.setItem('v6_km_id', 'k1'); sessionStorage.setItem('v6_admin_id', 'admin_ulsan'); });
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
     assert.ok(await page.evaluate(() => !!navigator.serviceWorker.controller), '서비스 워커가 화면을 제어해야 함');
@@ -38,7 +40,7 @@ const BASE = 'http://localhost:8000';
     const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
     console.log('2) 서비스 워커 활성, 설치 가능 오류:', JSON.stringify(installabilityErrors));
     assert.deepEqual(installabilityErrors, []);
-    const cached = await page.evaluate(async () => (await (await caches.open('vlp-shell-v49')).keys()).length);
+    const cached = await page.evaluate(async () => (await (await caches.open('vlp-shell-v62')).keys()).length);
     assert.ok(cached >= 20, '앱 셸 캐시 항목 ' + cached);
 
     // 3) 오프라인에서 마지막 화면 렌더 (고객·카마스터·시공사·관리자)
@@ -46,8 +48,9 @@ const BASE = 'http://localhost:8000';
     let banner = '';
     for (const html of ['customer', 'karmaster', 'shop', 'admin']) {
       await page.goto(`${BASE}/${html}.html`);
+      await page.waitForFunction(() => document.body.innerText.length > 30, null, { timeout: 8000 }).catch(() => {});
       const ok = await page.evaluate(() => !!document.querySelector('.navbar, #vlp-rolebar') && document.body.innerText.length > 30);
-      assert.ok(ok, html + ' 오프라인 렌더');
+      assert.ok(ok, html + ' 오프라인 렌더 ' + page.url() + ' ' + (await page.evaluate(() => document.body.innerText.slice(0, 80))));
       assert.ok(await page.isVisible(html === 'admin' ? '#vlp-offline-banner' : '#vlp-rolebar .rb-status'), html + ' 오프라인 표시');
       if (html === 'customer') banner = await page.innerText('#vlp-rolebar .rb-status');
     }

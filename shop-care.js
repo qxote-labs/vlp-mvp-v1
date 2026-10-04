@@ -222,14 +222,21 @@
     return root;
   }
 
-  // ---------- 화면(목록 + 상세) ----------
+  // ---------- 화면(오늘 / 고객 건 / 메시지 / 내 정보) ----------
+  // 카마스터 화면과 같은 구조: 상단 메뉴 + (고객 건에서만) 큐 칩 띠 + 목록|상세. 서버 호출은 그대로 api().list 하나다.
+  const NAV = [['today', '📋', '오늘'], ['clients', '👥', '고객 건'], ['msgs', '💬', '메시지'], ['me', '👤', '내 정보']];
+  const QUEUE_LABEL = { quote: '견적 요청', intake: '입고 대기', work: '작업 중', inspect: '검수 대기', dispute: '이의 대응' };
   function render(shop, o) {
     o = o || {};
     const shopId = shop.id; const route = V.caseView.route;
-    const root = el('<div class="vlp-app vlp-app-shop"><div class="vlp-app-strip"></div><div class="vlp-app-list"></div><div class="vlp-app-detail"></div></div>');
-    const stripEl = root.querySelector('.vlp-app-strip'), listEl = root.querySelector('.vlp-app-list'), detailEl = root.querySelector('.vlp-app-detail');
+    const root = el('<div class="vlp-app vlp-app-shop lay-top"><div class="vlp-app-strip" hidden></div><div class="vlp-app-list"></div><div class="vlp-app-detail"></div><nav class="vlp-bottomnav" aria-label="주 메뉴"></nav></div>');
+    const stripEl = root.querySelector('.vlp-app-strip'), listEl = root.querySelector('.vlp-app-list'), detailEl = root.querySelector('.vlp-app-detail'), nav = root.querySelector('.vlp-bottomnav');
     const ho = V.shopFlow ? V.shopFlow.source(shopId) : null;
     let care = [], queue = '', cur = null, lastSig = null, loaded = false, busy = false;
+    const tabKey = 'vlp_shop_tab';
+    const getTab = () => { try { return sessionStorage.getItem(tabKey) || 'today'; } catch (e) { return 'today'; } };
+    const putTab = (t) => { try { sessionStorage.setItem(tabKey, t); } catch (e) { /* 무시 */ } };
+    const setTab = (t) => { putTab(t); route.clear(); };
 
     const unified = () => {
       const items = care.map((it) => ({ id: it.careId, kind: 'care', q: queueOf(it), it }));
@@ -242,15 +249,45 @@
       act: async (fn) => { if (busy) return; busy = true; try { await fn(); await load(true); } catch (e) { fail(e); } finally { busy = false; } },
       onBack: () => route.clear(),
     };
+    const head = (title) => { const h = el('<div class="vlp-pane-head"><h2></h2></div>'); h.querySelector('h2').textContent = title; return h; };
 
-    function paintList(items, activeId) {
-      listEl.innerHTML = ''; stripEl.innerHTML = '';
-      const hd = el('<div class="vlp-pane-head"><h2>할 일</h2></div>');
-      if (o.onLogout) { const b = el('<button type="button" class="btn btn-outline btn-sm" id="sc-logout">로그아웃</button>'); b.addEventListener('click', o.onLogout); hd.appendChild(b); }
-      stripEl.appendChild(hd);
+    // ---- 오늘: 처리할 일을 종류별로 ----
+    function todayPane(items) {
+      listEl.appendChild(head('오늘'));
+      const n = (q) => items.filter((x) => x.kind === 'care' && x.q === q).length;
+      const kp = el('<div class="vlp-kpi-strip" role="group" aria-label="오늘 요약"></div>');
+      ['quote', 'intake', 'work', 'inspect', 'dispute'].forEach((q) => { const i = el('<span class="vlp-kpi"><b></b><span></span></span>'); const c = n(q) + (q === 'intake' ? items.filter((x) => x.kind === 'handover' && x.q === 'intake').length : 0); i.querySelector('b').textContent = String(c); i.querySelector('span').textContent = QUEUE_LABEL[q]; if (!c) i.classList.add('zero'); kp.appendChild(i); });
+      listEl.appendChild(kp);
+      const groups = {}; const order = [];
+      const push = (key, row) => { if (!groups[key]) { groups[key] = []; order.push(key); } groups[key].push(row); };
+      items.forEach((x) => {
+        if (x.kind === 'handover') { if (x.q === 'intake') push('인도지 인수', { id: x.id, title: x.c.vehicleModel || '차량', sub: x.c.serviceContractNo || '', todo: '열기' }); return; }
+        const it = x.it, u = urgentOf(it); if (!u) return;
+        const hm = (v) => { const d = new Date(v); if (isNaN(d)) return ''; const p = (n) => String(n).padStart(2, '0'); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+        const lastLog = it.log && it.log.length ? it.log[it.log.length - 1].t : '';
+        const extra = { REQUESTED: it.createdAt ? '요청 ' + hm(it.createdAt) : '', CONFIRMED: H().modeLabel(it.receiveMode), RECEIVED: '입고 완료 · 작업 전', WORKING: '작업 중', INSPECTING: '작업 완료 · 검수 요청 전', REWORK: (it.disputeRounds || 1) + '/' + (it.disputeMaxRounds || '-') + '회째 이의', RELEASED: VISIT(it) ? '방문 수령' : '배송 수령' }[it.phase] || '';
+        push(u, { id: x.id, title: it.vehicleModel || '차종 미입력', who: it.customer && it.customer.name ? it.customer.name : '', no: it.careId, sub: [it.package ? it.package.name : '', extra].filter(Boolean).join(' · '), todo: u.replace(/ 필요$/, '') });
+      });
+      if (!order.length) { listEl.appendChild(el('<div class="vlp-todo-none"><span class="vlp-todo-ok" aria-hidden="true">✓</span><div><b>오늘 처리할 일이 없어요</b><span class="hint">새 견적 요청이 오면 알려 드려요.</span></div></div>')); return; }
+      order.forEach((key) => {
+        const box = el('<section class="vlp-today-sec"><div class="vlp-section-title"><span></span><span class="vlp-count"></span></div></section>');
+        box.querySelector('.vlp-section-title span').textContent = key; box.querySelector('.vlp-count').textContent = String(groups[key].length);
+        groups[key].forEach((r0) => {
+          const r = el('<div class="vlp-today-row"><span class="vlp-today-text"><b></b><span class="hint"></span></span><button type="button" class="btn btn-sm vlp-today-act"></button></div>');
+          r.dataset.careId = r0.id; r.querySelector('b').textContent = r0.title; { const h = r.querySelector('.hint'); if (r0.no) { if (r0.who) h.appendChild(document.createTextNode(r0.who + ' · ')); const no = document.createElement('span'); no.className = 'vlp-today-no'; no.textContent = r0.no; h.appendChild(no); if (r0.sub) h.appendChild(document.createTextNode(' · ' + r0.sub)); } else h.textContent = r0.sub; }
+          const b = r.querySelector('.vlp-today-act'); b.textContent = r0.todo; b.setAttribute('aria-label', r0.todo + ' · ' + r0.title);
+          b.addEventListener('click', () => route.set(r0.id)); box.appendChild(r);
+        });
+        listEl.appendChild(box);
+      });
+    }
+    // ---- 고객 건: 큐 칩 + 목록 ----
+    function clientsPane(items, activeId) {
+      stripEl.hidden = false; stripEl.innerHTML = '';
+      stripEl.appendChild(head('고객 건'));
       const qs = cfg('careShopQueues') || [];
       const chips = el('<div class="vlp-chip-row sc-queues" role="group" aria-label="할 일 큐"></div>');
-      const mk = (id, label, n) => { const b = el('<button type="button" class="vlp-chip"></button>'); b.dataset.queue = id; b.textContent = label + ' ' + n; b.setAttribute('aria-pressed', queue === id ? 'true' : 'false'); b.addEventListener('click', () => { queue = queue === id ? '' : id; paint(); }); chips.appendChild(b); };
+      const mk = (id, label, c) => { const b = el('<button type="button" class="vlp-chip"></button>'); b.dataset.queue = id; b.dataset.filter = id || 'all'; b.appendChild(document.createElement('span')).textContent = label; b.appendChild(document.createTextNode(' ')); b.appendChild(document.createElement('b')).textContent = String(c); if (!c && id) b.classList.add('zero'); b.setAttribute('aria-pressed', queue === id ? 'true' : 'false'); b.addEventListener('click', () => { queue = queue === id ? '' : id; paint(); }); chips.appendChild(b); };
       mk('', '전체', items.length); qs.forEach((q) => mk(q.id, q.label, items.filter((x) => x.q === q.id).length));
       stripEl.appendChild(chips);
       const shown = queue ? items.filter((x) => x.q === queue) : items;
@@ -264,15 +301,43 @@
         r.querySelector('.vlp-row-prog').textContent = (it.unreadChat ? '💬 새 메시지 ' + it.unreadChat + ' · ' : '') + (urgentOf(it) ? urgentOf(it) + ' · ' : '') + H().progressOf(it);
         r.addEventListener('click', () => route.set(it.careId)); listEl.appendChild(r);
       });
+      return shown;
+    }
+    // ---- 메시지 ----
+    function msgsPane(items) {
+      listEl.appendChild(head('메시지'));
+      if (!items.length) listEl.appendChild(el('<div class="hint">대화할 건이 없어요.</div>'));
+      items.forEach((x) => {
+        const r = el('<button type="button" class="vlp-case-row vlp-msg-row"><span class="vlp-row-top"><b class="vlp-row-title"></b><span class="vlp-chat-badge" hidden></span></span><span class="hint vlp-row-sub"></span></button>');
+        const it = x.it, c = x.c;
+        r.dataset.careId = x.id; r.querySelector('.vlp-row-title').textContent = it ? titleOf(it) : (c.vehicleModel || '차량');
+        r.querySelector('.vlp-row-sub').textContent = it ? it.careId + ' · 고객' : [c.serviceContractNo, '카마스터·고객'].filter(Boolean).join(' · ');
+        if (it && it.unreadChat) { const bd = r.querySelector('.vlp-chat-badge'); bd.hidden = false; bd.textContent = String(it.unreadChat); }
+        r.addEventListener('click', () => (it ? V.chat.open(it.careId, { role: 'shop', api: api().chatFor(shopId), summary: titleOf(it) + ' · 고객', opener: r }) : V.chat.open(c.contractId, { role: 'shop', summary: (c.vehicleModel || '차량') + ' · 카마스터·고객', opener: r })));
+        listEl.appendChild(r);
+      });
+    }
+    // ---- 내 정보 ----
+    function mePane() {
+      listEl.appendChild(head('내 정보'));
+      const me = el('<div class="vlp-cd"><h4></h4><p></p></div>'); me.querySelector('h4').textContent = shop.name || '시공사'; me.querySelector('p').textContent = U.formatPhone(shop.phone || ''); listEl.appendChild(me);
+      if (V.pushLink) listEl.appendChild(V.caseView.card('알림', V.pushLink.settingsRow()));
+      if (o.onLogout) { const lo = el('<button type="button" class="btn btn-outline vlp-logout-btn" id="sc-logout">로그아웃</button>'); lo.addEventListener('click', o.onLogout); listEl.appendChild(lo); }
+    }
+    function paintNav(inCase) {
+      nav.innerHTML = ''; const t = getTab();
+      NAV.forEach(([id, ico, label]) => { const b = el('<button type="button" class="vlp-nav-btn"><span aria-hidden="true"></span><b></b></button>'); b.dataset.tab = id; b.firstChild.textContent = ico; b.querySelector('b').textContent = label; if (id === t && (!inCase || wide())) b.setAttribute('aria-current', 'page'); b.addEventListener('click', () => setTab(id)); nav.appendChild(b); });
     }
     function paint() {
       if (!loaded) return;
       if (cur && cur.__off) cur.__off();
       const items = unified(); let id = route.get(); let x = id && items.find((i) => i.id === id);
-      if (!x && wide() && items.length) { const pool = queue ? items.filter((i) => i.q === queue) : items; x = pool[0] || null; id = x ? x.id : null; }
-      root.classList.toggle('has-case', !!x); detailEl.innerHTML = '';
-      paintList(items, id);
-      if (!x) { cur = null; if (items.length) detailEl.appendChild(el('<div class="vlp-empty-detail hint">왼쪽에서 건을 선택해 주세요.</div>')); return; }
+      if (x && wide() && getTab() !== 'clients') putTab('clients');
+      const tab = getTab(); listEl.innerHTML = ''; stripEl.hidden = true; stripEl.innerHTML = '';
+      if (!x && wide() && tab === 'clients') { const pool = queue ? items.filter((i) => i.q === queue) : items; x = pool[0] || null; id = x ? x.id : null; }
+      if (tab === 'today') todayPane(items); else if (tab === 'clients') clientsPane(items, id); else if (tab === 'msgs') msgsPane(items); else mePane();
+      root.classList.toggle('has-case', !!x); root.dataset.tab = tab; paintNav(!!x); detailEl.innerHTML = '';
+      if (!x) { cur = null; detailEl.appendChild(el('<div class="vlp-empty-detail hint">' + (tab === 'clients' && items.length ? '왼쪽에서 건을 선택해 주세요.' : '') + '</div>')); return; }
       cur = x.kind === 'care' ? careDetail(x.it, ctx) : ho.detail(x.c, { onBack: ctx.onBack, reload: () => load(true) });
       detailEl.appendChild(cur);
     }

@@ -1,6 +1,7 @@
 // 시연 데이터(신차인도 단계별 건·계정)와 계정별 확인 안내가 서로 맞는지 확인한다.
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const { execFileSync } = require('child_process');
 const path = require('path');
 const BASE = 'http://localhost:8000';
@@ -49,16 +50,16 @@ const EXPECT = {
     // 3) 카마스터
     const kmRows = async (k) => { const kp = await ctx.newPage(); kp.on('pageerror', (e) => errs.push(e.message)); await kp.goto(BASE + '/karmaster.html?nosw=1&demoKm=' + k); const nav = kp.locator('.vlp-nav-btn[data-tab=clients]').first(); await nav.waitFor({ state: 'attached', timeout: 15000 }); if (!(await kp.locator('.vlp-chip').count())) await nav.click(); await kp.waitForSelector('.vlp-chip'); await kp.waitForTimeout(500); const t = await kp.$$eval('.vlp-app-karmaster .vlp-case-row', (e) => e.map((x) => x.innerText.replace(/\s+/g, ' '))); await kp.close(); return t; };
     const k1 = await kmRows('k1'), k2 = await kmRows('k2'), k3 = await kmRows('k3');
-    assert.strictEqual(k1.length, 11); assert.strictEqual(k2.length, 4); assert.strictEqual(k3.length, 5);
+    assert.strictEqual(k1.length, 12); assert.strictEqual(k2.length, 4); assert.strictEqual(k3.length, 5);
     assert.ok(k3.some((t) => /셀토스/.test(t) && /지연 중/.test(t)), 'k3 셀토스 지연 중'); assert.ok(k1.some((t) => /스타리아/.test(t) && /도착/.test(t)));
     // 4) 시공사 A샵: 인도 건 5건
-    const sp = await ctx.newPage(); sp.on('pageerror', (e) => errs.push(e.message)); await sp.goto(BASE + '/shop.html?nosw=1'); await sp.selectOption('#quick-login', 'a'); await sp.waitForSelector('.vlp-case-row', { timeout: 10000 }); await sp.waitForTimeout(800);
+    const sp = await ctx.newPage(); sp.on('pageerror', (e) => errs.push(e.message)); await loginAs(sp, 'shop', 'a'); await sp.click('.vlp-nav-btn[data-tab=clients]'); await sp.waitForSelector('.vlp-case-row', { timeout: 10000 }); await sp.waitForTimeout(800);
     const shopRows = await sp.$$eval('.vlp-case-row', (e) => e.map((x) => x.innerText.replace(/\s+/g, ' ')).filter((t) => /SS-/.test(t)));
     assert.strictEqual(shopRows.length, 5, '시공사 A샵 인도 건 ' + shopRows.length); assert.ok(shopRows.some((t) => /G80/.test(t) && /인도 종결/.test(t)));
     // 5) 관리자
-    const ap = await ctx.newPage(); ap.on('pageerror', (e) => errs.push(e.message)); await ap.goto(BASE + '/admin.html?nosw=1'); await ap.selectOption('#quick-login', 'admin_ulsan'); await ap.waitForSelector('.vlp-chip', { timeout: 10000 }); await ap.waitForTimeout(800);
+    const ap = await ctx.newPage(); ap.on('pageerror', (e) => errs.push(e.message)); await loginAs(ap, 'admin', 'admin_ulsan'); await ap.waitForSelector('.vlp-chip', { timeout: 10000 }); await ap.waitForTimeout(800);
     const chips = await ap.$$eval('.vlp-chip', (e) => e.map((x) => x.innerText.replace(/\s+/g, ' ')));
-    assert.ok(chips.includes('전체 21') && chips.includes('예외·지연 1') && chips.includes('완료 3'), '관리자 필터 ' + JSON.stringify(chips));
+    assert.ok(chips.includes('전체 22') && chips.includes('예외·지연 1') && chips.includes('완료 3'), '관리자 필터 ' + JSON.stringify(chips));
     assert.deepStrictEqual(errs, []); console.log('PASS test_demo_flows');
   } finally { await b.close(); }
 })().catch((e) => { console.error('FAIL', e.message); process.exit(1); });

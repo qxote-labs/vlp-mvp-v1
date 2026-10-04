@@ -846,7 +846,7 @@ label.vlp-cap-btn:focus-within { outline: 2px solid var(--c-primary, #1f5fbf); o
 /* ===== 카마스터 레이아웃 시안 lay-top: 상단 메뉴 + 상태 가로 띠(필터) + 목록|상세 (논의 중, ?lay=top) ===== */
 .vlp-app-strip[hidden] { display: none; }
 @media (min-width: 768px) {
-  .vlp-app.vlp-app-karmaster.lay-top { grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: auto auto 1fr; align-items: start; }
+  .vlp-app.vlp-app-karmaster.lay-top, .vlp-app.vlp-app-shop.lay-top { grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: auto auto 1fr; align-items: start; }
   .lay-top .vlp-bottomnav, .lay-top.has-case .vlp-bottomnav { grid-column: 1 / -1; grid-row: 1; flex-direction: row; position: static; align-self: stretch; padding: 4px 8px; gap: 4px; }
   .lay-top .vlp-nav-btn { flex: 0 0 auto; flex-direction: row; gap: 8px; padding: 0 16px; min-height: 44px; font-size: 13px; }
   .lay-top .vlp-app-strip { grid-column: 1 / -1; grid-row: 2; position: sticky; top: 0; z-index: 5; background: var(--c-bg, #f5f6f8); }
@@ -861,7 +861,7 @@ label.vlp-cap-btn:focus-within { outline: 2px solid var(--c-primary, #1f5fbf); o
   .lay-top[data-tab=today] .vlp-app-list, .lay-top[data-tab=msgs] .vlp-app-list, .lay-top[data-tab=me] .vlp-app-list { grid-column: 1 / -1; grid-row: 3; max-width: var(--page-measure, 760px); }
 }
 @media (min-width: 1280px) {
-  .vlp-app.vlp-app-karmaster.lay-top { grid-template-columns: 360px minmax(0, 1fr); }
+  .vlp-app.vlp-app-karmaster.lay-top, .vlp-app.vlp-app-shop.lay-top { grid-template-columns: 360px minmax(0, 1fr); }
   .lay-top .vlp-bottomnav, .lay-top.has-case .vlp-bottomnav { grid-column: 1 / -1; grid-row: 1; flex-direction: row; position: static; padding: 4px 8px; }
   .lay-top .vlp-app-list { grid-row: 3; grid-column: 1; }
   .lay-top .vlp-app-detail { grid-row: 3; grid-column: 2; }
@@ -1011,18 +1011,7 @@ label.vlp-cap-btn:focus-within { outline: 2px solid var(--c-primary, #1f5fbf); o
 .sc-charge .care-sheet input, .sc-charge .care-sheet textarea { width: 100%; }
 /* 시공사: 위에 제목·큐 칩(가로 띠), 아래에 목록 | 상세 — 카마스터·관리자와 같은 구조 */
 .vlp-app-shop.has-case .vlp-app-strip { display: none; }
-@media (min-width: 768px) {
-  .vlp-app.vlp-app-shop { grid-template-columns: 320px minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; }
-  .vlp-app.vlp-app-shop.has-case .vlp-app-strip { display: block; }
-  .vlp-app-shop .vlp-app-strip { grid-column: 1 / -1; grid-row: 1; }
-  .vlp-app-shop .vlp-app-strip .vlp-chip-row { display: flex; flex-wrap: nowrap; gap: 8px; padding: 0 0 var(--sp-3); overflow-x: auto; }
-  .vlp-app-shop .vlp-app-strip .vlp-chip { flex: 1 1 0; min-width: 96px; justify-content: center; }
-  .vlp-app-shop .vlp-app-list { grid-row: 2; grid-column: 1; }
-  .vlp-app-shop .vlp-app-detail { grid-row: 2; grid-column: 2; }
-}
-@media (min-width: 1280px) {
-  .vlp-app.vlp-app-shop { grid-template-columns: 340px minmax(0, 1fr); }
-}
+@media (min-width: 768px) { .vlp-app.vlp-app-shop.has-case .vlp-app-strip { display: block; } }
 .sc-queues { flex-wrap: wrap; overflow: visible; }
 .sc-info .summary-line { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; margin: 0; }
 .sc-info .summary-line > span:first-child { flex: none; min-width: 96px; font-weight: 600; color: var(--c-ink); }
@@ -1278,7 +1267,7 @@ table td, table th { vertical-align: middle; }
 /* 태블릿·PC 2단: 목록과 상세가 각자 스크롤한다(고객이 많아도 목록 위치를 유지한 채 상세만 내릴 수 있게). 카마스터·시공사·관리자 */
 @media (min-width: 768px) {
   .vlp-app-karmaster.has-case .vlp-app-detail, .vlp-app-admin.has-case .vlp-app-detail, .vlp-app-shop.has-case .vlp-app-detail { position: sticky; top: var(--sp-3); align-self: start; max-height: calc(100vh - 24px); overflow: auto; overscroll-behavior: contain; }
-  .vlp-app-karmaster.lay-top.has-case .vlp-app-detail, .vlp-app-admin.lay-top.has-case .vlp-app-detail { max-height: calc(100vh - 150px); }
+  .vlp-app-karmaster.lay-top.has-case .vlp-app-detail, .vlp-app-admin.lay-top.has-case .vlp-app-detail, .vlp-app-shop.lay-top.has-case .vlp-app-detail { max-height: calc(100vh - 150px); }
   .vlp-app-karmaster .vlp-app-list, .vlp-app-admin .vlp-app-list, .vlp-app-shop .vlp-app-list { overscroll-behavior: contain; }
 }
 
@@ -1301,10 +1290,76 @@ table td, table th { vertical-align: middle; }
   .vlp-nav-btn, .lay-top .vlp-nav-btn, .vlp-app.vlp-app-customer[data-sw=menu] .vlp-nav-btn, .vlp-app.vlp-app-customer[data-sw=pill] .vlp-nav-btn { font-size: 14px; }
 }
 
-/* 고객 홈: 넓은 화면(1100px~)에서는 오른쪽이 비지 않게 2열 — 왼쪽 확인할 일·진행 중, 오른쪽 바로가기 (760px 읽기 폭 제한은 좁은 화면 기준) */
+/* 고객 홈: 오늘·메시지와 같은 틀 — 제목 + 건 카드, 768px부터 카드 열이 폭에 맞춰 늘어난다. 오른쪽 바로가기 영역은 1100px부터 */
+@media (min-width: 768px) {
+  .vlp-app.vlp-app-customer[data-tab=home] .vlp-app-list.vlp-app-list.vlp-app-list { max-width: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 0 20px; align-content: start; align-items: start; }
+  .vlp-app-customer[data-tab=home] .vlp-app-list > * { margin-top: 0; margin-bottom: 10px; }
+  .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-home-head, .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-home-sum, .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-section-title, .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-sc-zone, .vlp-app-customer[data-tab=home] .vlp-app-list > :where(:not(.vlp-case-row):not(.vlp-todo-card):not(.vlp-today-row):not(.vlp-care-row)) { grid-column: 1 / -1; }
+}
 @media (min-width: 1100px) {
-  .vlp-app.vlp-app-customer[data-tab=home] .vlp-app-list.vlp-app-list { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 400px); column-gap: 24px; align-content: start; }
+  .vlp-app.vlp-app-customer[data-tab=home] .vlp-app-list.vlp-app-list.vlp-app-list { grid-template-columns: minmax(0, 1fr) clamp(260px, 28%, 360px); }
   .vlp-app-customer[data-tab=home] .vlp-app-list > * { grid-column: 1; }
   .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-home-head, .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-home-sum { grid-column: 1 / -1; }
+  .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-section-title { grid-column: 1; }
   .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-sc-zone { grid-column: 2; grid-row: 3 / span 12; align-self: start; }
 }
+/* 내 정보: 설정 화면이라 읽기 폭(760px)을 두고 가운데에 둔다 — 모든 역할 공통 */
+@media (min-width: 768px) {
+  .vlp-app[data-tab=me] .vlp-app-list.vlp-app-list.vlp-app-list { max-width: var(--page-measure, 760px); margin-left: auto; margin-right: auto; width: 100%; }
+}
+
+/* 통합 앱 로그인: 비밀번호 안내·사용 방법 링크·역할 선택 */
+.ap-pwhint { font-size: 12px; margin: -6px 0 12px; color: var(--c-muted); }
+.ap-manual { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 14px; font-weight: 700; color: var(--c-accent, #0b6e8a); text-decoration: none; min-height: 44px; }
+.ap-manual:hover { text-decoration: underline; }
+.ap-reg { margin-right: 16px; }
+.ap-one { max-width: 520px; margin: 0 auto; display: block; }
+.ap-rolelist { display: grid; gap: 10px; margin: 14px 0; }
+.ap-rolebtn { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: baseline; text-align: left; padding: 12px 14px; border: 1px solid var(--c-line); border-radius: 12px; background: var(--c-surface); font: inherit; cursor: pointer; min-height: 56px; }
+.ap-rolebtn:hover, .ap-rolebtn:focus-visible { border-color: var(--c-accent, #0b6e8a); background: var(--c-accent-soft, #e4eef2); }
+.ap-rolebtn b { font-size: 15px; }
+.ap-rolebtn .ap-rname { font-size: 14px; font-weight: 600; }
+.ap-rolebtn .ap-rdesc { grid-column: 1 / -1; font-size: 12px; color: var(--c-muted); }
+.ap-rolebtn .ap-last { position: absolute; right: 12px; top: 10px; font-size: 11px; font-style: normal; font-weight: 700; color: var(--c-accent, #0b6e8a); }
+.ap-back { width: 100%; }
+
+/* 시공사 홈(오늘/고객 건/메시지/내 정보): 카마스터와 같은 lay-top. 큐 칩은 건수 칩 모양을 따른다 */
+.vlp-app-shop.lay-top .vlp-app-strip .vlp-chip[data-filter=dispute]:not(.zero) b { color: var(--c-wr); }
+.vlp-app-shop.lay-top .vlp-app-strip .vlp-chip[data-filter=dispute][aria-pressed=true] b { color: #fff; }
+
+/* 오늘·메시지(역할 공통): 760px 읽기 폭에 묶지 않고 화면 폭만큼 쓴다 — 폭이 늘면 카드 열이 하나씩 늘어난다(360px 이상이면 2열, 1080px 이상이면 3열…) */
+@media (min-width: 768px) {
+  .vlp-app[data-tab=msgs] .vlp-app-list.vlp-app-list.vlp-app-list {
+    max-width: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: var(--sp-3) 20px; align-content: start; align-items: start;
+  }
+  .vlp-app[data-tab=msgs] .vlp-app-list > * { margin-top: 0; margin-bottom: 0; }
+  .vlp-app[data-tab=msgs] .vlp-app-list > .vlp-pane-head, .vlp-app[data-tab=msgs] .vlp-app-list > .hint { grid-column: 1 / -1; }
+}
+
+/* 오늘: 업무 구분마다 상자 하나(제목+건 목록). 건 사이에만 연한 선, 제목 아래 선 없음. 한 줄에 한 건이 기본, 건이 4개 이상이고 화면이 넓을 때만 2열 */
+@media (min-width: 768px) {
+  .vlp-app[data-tab=today] .vlp-app-list.vlp-app-list.vlp-app-list { max-width: none; }
+  .vlp-app[data-tab=today] .vlp-today-sec { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 40px; border: 1px solid var(--c-line); border-radius: var(--radius); background: var(--c-surface); padding: 2px 14px 4px; margin: 0 0 var(--sp-3); }
+  .vlp-app[data-tab=today] .vlp-today-sec > .vlp-section-title { grid-column: 1 / -1; margin: 12px 0 6px; padding: 0; border: 0; font-size: 14px; font-weight: 700; color: var(--c-ink); }
+  .vlp-app[data-tab=today] .vlp-today-sec > .vlp-today-row { border: 0; border-radius: 0; background: none; padding: 8px 0; }
+  .vlp-app[data-tab=today] .vlp-today-sec > .vlp-today-row + .vlp-today-row { border-top: 1px solid var(--c-line); }
+  .vlp-app[data-tab=today] .vlp-today-sec { padding-bottom: 6px; }
+}
+
+/* 오늘 건 줄: 둘째 줄의 계약번호는 고정폭·진한 글자로 */
+.vlp-today-text .vlp-today-no { font: 600 12.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--c-accent-strong, var(--c-accent)); letter-spacing: .2px; }
+
+/* 폰: 건 상세가 짧아도 주요 행동 줄(인수 확인 열기 등)이 화면 맨 아래에 닿게 — 내용 높이가 아니라 화면 높이를 최소로 */
+@media (max-width: 767px) {
+  .vlp-app.has-case .vlp-case { display: flex; flex-direction: column; min-height: calc(100vh - 46px); min-height: calc(100dvh - 46px); }
+  .vlp-app.has-case .vlp-case .vlp-case-body { flex: 1 1 auto; }
+}
+
+/* 1280 이상 대화창: 본문 틀 높이에 맞춤(위치는 vlp-chat.js) */
+.vlp-chatdock.inbody.wide { border: 1px solid #ddd; border-radius: 6px; }
+
+/* 1280 이상: 대화창 오른쪽에도 본문 틀 왼쪽과 같은 여백(26px) + 틀과 대화창 사이 간격 */
+@media (min-width: 1280px) { body.vlp-chat-open { padding-right: calc(var(--chat-w) + 26px + 16px); } }
+
+/* 내 말풍선(진한 배경) 안의 보조 글자(시간·이름)는 흰색 계열로 — 전역 .hint 회색이 겹쳐 안 보이던 문제 */
+.msg-bubble.mine .hint, .msg-bubble.mine .vlp-msg-time, .msg-bubble.mine .vlp-msg-who, .msg-bubble.mine .msg-meta { color: rgba(255, 255, 255, .88); opacity: 1; }

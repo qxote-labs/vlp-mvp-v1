@@ -1,6 +1,7 @@
 // 케어 건 대화: 시공사가 보내면 고객 화면에서 보이고, 고객이 답하면 시공사 화면에서 보인다. 같은 키는 한 번만 저장.
 const { chromium } = require('playwright');
 const assert = require('assert');
+const { loginAs } = require('./_login');
 const BASE = 'http://localhost:8000';
 (async () => {
   const b = await chromium.launch(); const errs = [];
@@ -8,7 +9,7 @@ const BASE = 'http://localhost:8000';
     const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
     const s = await ctx.newPage(); s.on('pageerror', e => errs.push(e.message));
     await s.goto(BASE + '/demo.html?nosw=1'); await s.click('#load'); await s.waitForFunction(() => /채웠/.test(document.querySelector('#status').textContent));
-    await s.goto(BASE + '/shop.html?nosw=1'); await s.selectOption('#quick-login', 'b');
+    await loginAs(s, 'shop', 'b'); await s.click('.vlp-nav-btn[data-tab=clients]');
     await s.waitForSelector('.vlp-shop-case', { timeout: 10000 });
     const id = '20-202601-9002'; await s.locator('.vlp-case-row[data-care-id="' + id + '"]').click(); await s.waitForFunction((i) => { const c = document.querySelector('.vlp-shop-case'); return c && c.dataset.careId === i; }, id);
     await s.locator('.vlp-case-chat').click(); await s.waitForSelector('.vlp-chatdock textarea');
@@ -23,7 +24,7 @@ const BASE = 'http://localhost:8000';
     console.log('✔ 시공사 → 메시지 전송, 중복 키는 한 번만');
     // 고객 화면에서 읽고 답한다
     const c = await ctx.newPage(); c.on('pageerror', e => errs.push(e.message));
-    await c.goto(BASE + '/customer.html?nosw=1'); await c.selectOption('#quick-login-customer', { index: 1 });
+    await loginAs(c, 'customer', 1);
     await c.locator('.vlp-nav-btn[data-tab=care]').waitFor({ timeout: 10000 }); await c.locator('.vlp-nav-btn[data-tab=care]').click();
     await c.waitForSelector('.vlp-care-case');
     const cid = await c.locator('.vlp-care-case').getAttribute('data-care-id');
@@ -41,7 +42,7 @@ const BASE = 'http://localhost:8000';
     assert.ok(await c.evaluate((i) => !!Store.getCareOrder(i).chatRead.customer, cid), '열면 읽음 기록이 남는다');
     // 관리자: 읽기 전용, 사유를 남기기 전에는 본문이 가려진다
     const ad = await ctx.newPage(); ad.on('pageerror', e => errs.push(e.message)); await ad.setViewportSize({ width: 1440, height: 900 });
-    await ad.goto(BASE + '/supervisor.html'); await ad.waitForSelector('#quick-login'); await ad.selectOption('#quick-login', 'admin_super');
+    await loginAs(ad, 'supervisor', 'admin_super', '');
     await ad.click('.vlp-adm-nav-btn[data-menu=care]'); await ad.waitForSelector('#admin-care-list tr.clickable');
     await ad.locator('#admin-care-list tr.clickable', { hasText: cid }).first().click(); await ad.click('#care-chat-open'); await ad.waitForSelector('.vlp-chatdock');
     assert.strictEqual(await ad.locator('.vlp-chatdock textarea').count(), 0, '입력창 없음');
