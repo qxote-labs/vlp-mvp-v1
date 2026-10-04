@@ -1,0 +1,16 @@
+{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "RatingSubmitted",
+  "version": 1,
+  "occurredAt": "2026-10-02T09:00:00.000Z",
+  "contractId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "deliveryId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "actor": {
+    "role": "system",
+    "userId": "system"
+  },
+  "payload": {
+    "ratingId": "99999999-9999-4999-8999-999999999999",
+    "targetType": "KARMASTER"
+  }
+}

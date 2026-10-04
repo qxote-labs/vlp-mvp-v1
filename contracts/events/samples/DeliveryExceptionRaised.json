@@ -1,0 +1,16 @@
+{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "DeliveryExceptionRaised",
+  "version": 1,
+  "occurredAt": "2026-10-02T09:00:00.000Z",
+  "contractId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "deliveryId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "actor": {
+    "role": "system",
+    "userId": "system"
+  },
+  "payload": {
+    "exceptionId": "66666666-6666-4666-8666-666666666666",
+    "reasonCode": "traffic"
+  }
+}

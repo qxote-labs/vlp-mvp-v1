@@ -1,0 +1,2263 @@
+# VLP Lifecycle API v0.1 (제안). 생성 원본은 요청서 3.2 + DDL 델타. 직접 편집 가능.
+openapi: 3.0.3
+info:
+  title: VLP Lifecycle API (제안)
+  version: 0.1.0
+  description: 'VLP -> JEFLIX 플랫폼 API 계약 초안. 변경 요청서 3.2·3.3, BR-01~14, DDL 델타 v0.1 기준. 이 파일이 요청/응답 형태의 단일 진실 공급원이며, 실행계획서 4장(API 요약)을 대체한다. 상태:
+    제안. JEFLIX 회신 전까지 VLP는 api-facade 목 어댑터로 개발한다. x-status: CR-3.2 = 요청서 표에 있음, PROPOSED-ADD = 요청서에 추가 요청해야 함.'
+servers:
+- url: https://api.example.invalid/v1
+  description: placeholder. 실제 URL은 JEFLIX가 정한다 [미결]
+security:
+- bearerAuth: []
+tags:
+- name: contracts
+- name: access
+- name: deliveries
+- name: media
+- name: handover
+- name: engagement
+- name: admin
+paths:
+  /lifecycle/contracts:
+    post:
+      tags:
+      - contracts
+      summary: 계약 등록 (고객)
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      x-status: CR-3.2
+      description: 서비스 계약번호(SS-YYYYMM-NNNN)는 서버가 채번한다. 카마스터 미가입이면 claimToken(조회번호)을 응답에 1회만 반환한다. 이후 어떤 응답·알림에도 평문을 싣지 않는다.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContractCreate'
+      responses:
+        '201':
+          description: 등록됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+    get:
+      tags:
+      - contracts
+      summary: 계약 목록 (역할별)
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/ContractStatus'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/contracts/{id}:
+    get:
+      tags:
+      - contracts
+      summary: 계약 상세 (역할별 마스킹)
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: CR-3.2
+      description: 승인 전 카마스터에게는 차량·접수번호·고객 표시명만 반환한다. 권한 없음과 없음을 구분하지 않는다(404).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contract'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/contracts/{id}/approve:
+    post:
+      tags:
+      - contracts
+      summary: 계약 승인 (카마스터)
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contract'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/contracts/{id}/reject:
+    post:
+      tags:
+      - contracts
+      summary: 계약 거절 (가입 카마스터, 승인 전)
+      x-cr-ref: DM-06 (REJECTED 상태)
+      x-roles:
+      - karmaster
+      x-status: PROPOSED-ADD
+      description: 요청서 3.2 표에는 없다. DM-06이 REJECTED 상태를 추가했으므로 API 계약에도 추가를 요청해야 한다.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contract'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/contracts/{id}/confirm:
+    post:
+      tags:
+      - contracts
+      summary: 고객 계약 확인
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contract'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/contracts/{id}/release-request:
+    post:
+      tags:
+      - contracts
+      summary: 출고 요청 (고객)
+      x-cr-ref: API 계약 / BR-05
+      x-roles:
+      - customer
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contract'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/contracts/{id}/release-order:
+    post:
+      tags:
+      - contracts
+      summary: 출고 의뢰 (카마스터) -> 배송 건 PLANNED
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseOrder'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/access/claims:
+    post:
+      tags:
+      - access
+      summary: 조회번호 claim (미가입 카마스터)
+      x-cr-ref: API 계약 / BR-02
+      x-roles:
+      - karmaster
+      x-status: CR-3.2
+      description: 전화번호 + (제조사 계약번호) + 조회번호. 속도 제한·시도 횟수 제한. 가입 카마스터는 claim이 필요 없다.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/access/login:
+    post:
+      tags:
+      - access
+      summary: 확인번호 로그인 (미가입 카마스터)
+      x-cr-ref: PROPOSED-ADD
+      x-roles:
+      - karmaster
+      x-status: PROPOSED-ADD
+      description: "[PROPOSED-ADD] 처음 claim에서 확인번호를 정한 미가입 카마스터가 조회번호 없이 다시 들어온다. 전화번호 + 확인번호, 시도 제한은 claim과 공유. 마지막 계약 종료 후 유예 기간이 지나 휴면이면 409."
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/notifications:
+    get:
+      tags:
+      - notifications
+      summary: 내 알림 목록 (앱 안)
+      x-cr-ref: PROPOSED-ADD
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: PROPOSED-ADD
+      description: "[PROPOSED-ADD] 알림은 이벤트 참조 + 일반 문구만 가진다. 조회번호 등 평문 금지."
+      parameters:
+      - name: unread
+        in: query
+        schema:
+          type: boolean
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/notifications/{id}/read:
+    post:
+      tags:
+      - notifications
+      summary: 알림 읽음 처리
+      x-cr-ref: PROPOSED-ADD
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: PROPOSED-ADD
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/access/grants:
+    get:
+      tags:
+      - access
+      summary: 내 권한 목록
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      x-status: CR-3.2
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/access/grants/{id}/reissue:
+    post:
+      tags:
+      - access
+      summary: 고객 재승인에 의한 신규 발급
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}:
+    get:
+      tags:
+      - deliveries
+      summary: 배송 상세 (표시 상태 파생 포함)
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/timeline:
+    get:
+      tags:
+      - deliveries
+      summary: 타임라인 (AUTO + MANAGER 병합)
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelinePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/location:
+    get:
+      tags:
+      - deliveries
+      summary: 최신 위치·이력·수집 상태
+      x-cr-ref: API 계약 / BR-07
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/augmentations:
+    post:
+      tags:
+      - deliveries
+      summary: 카마스터 보강 입력 (초안)
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AugmentationCreate'
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Augmentation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/augmentations/{aid}/publish:
+    post:
+      tags:
+      - deliveries
+      summary: 보강정보 게시
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: aid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Augmentation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/exceptions:
+    post:
+      tags:
+      - deliveries
+      summary: 지연(예외) 발생
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExceptionCreate'
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/exceptions/{eid}/resolve:
+    post:
+      tags:
+      - deliveries
+      summary: 지연 해소
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: eid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/media:
+    post:
+      tags:
+      - media
+      summary: 사진 등록 초기화 (이어올리기)
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      - shop
+      x-status: CR-3.2
+      description: 초기화 후 업로드 URL로 PUT, 완료 시 POST .../media/{mid}/complete. 재시도·오프라인 큐는 Idempotency-Key로 중복을 막는다.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaCreate'
+      responses:
+        '201':
+          description: 업로드 URL 발급
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaInit'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/media/{mid}/complete:
+    post:
+      tags:
+      - media
+      summary: 업로드 완료 (즉시 게시)
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      - shop
+      x-status: PROPOSED-ADD
+      parameters:
+      - name: mid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/media/{mid}/withdraw:
+    post:
+      tags:
+      - media
+      summary: 사진 회수
+      x-cr-ref: API 계약
+      x-roles:
+      - karmaster
+      - shop
+      x-status: CR-3.2
+      parameters:
+      - name: mid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/handover:
+    get:
+      tags:
+      - handover
+      summary: 인수 상태 (사진·검수·양측 확인)
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Handover'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/handover/manager-confirmation:
+    post:
+      tags:
+      - handover
+      summary: 카마스터 개인수령확인
+      x-cr-ref: BR-03
+      x-roles:
+      - karmaster
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Handover'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/handover/customer-approval:
+    post:
+      tags:
+      - handover
+      summary: 고객 최종 승인 (현장/원격)
+      x-cr-ref: BR-03, BR-06
+      x-roles:
+      - customer
+      x-status: CR-3.2
+      description: 양측 확인이 모두 기록되면 저장 상태 DELIVERED(표시 CONFIRMED)로 전환한다. 검수 FAIL은 overrideReason 없이는 422.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerApproval'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Handover'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/deliveries/{id}/handover/proxy-receipt:
+    post:
+      tags:
+      - handover
+      summary: 시공사 대리 인수 (입고 유형 A)
+      x-cr-ref: BR-05
+      x-roles:
+      - shop
+      x-status: CR-3.2
+      description: grant가 아니라 인도지(delivery_site.business_id) + business_member로 권한을 판정한다. 필수 촬영 미완료는 422.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProxyReceipt'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Handover'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/ratings:
+    post:
+      tags:
+      - engagement
+      summary: 평가 등록 (CONFIRMED 이후 언제든)
+      x-cr-ref: BR-11, BR-13
+      x-roles:
+      - customer
+      x-status: CR-3.2
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatingCreate'
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/points:
+    get:
+      tags:
+      - engagement
+      summary: 포인트 조회
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      x-status: CR-3.2
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PointSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/threads/{id}/messages:
+    get:
+      tags:
+      - engagement
+      summary: 대화 메시지 목록
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+    post:
+      tags:
+      - engagement
+      summary: 메시지 전송
+      x-cr-ref: API 계약
+      x-roles:
+      - customer
+      - karmaster
+      - shop
+      x-status: CR-3.2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/admin/collection-status:
+    get:
+      tags:
+      - admin
+      summary: 위치 수집 상태·지연 목록
+      x-cr-ref: API 계약
+      x-roles:
+      - admin
+      x-status: CR-3.2
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionStatusPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+  /lifecycle/admin/sensitive-views:
+    post:
+      tags:
+      - admin
+      summary: 민감 열람 기록 (BR-12)
+      x-cr-ref: BR-12 / DDL audit.sensitive_view_log
+      x-roles:
+      - admin
+      - karmaster
+      - customer
+      x-status: PROPOSED-ADD
+      description: 채팅 전문, 상담 메모 전문, 고객 연락처 표시, 감사 열람만 기록한다. 같은 사람·같은 건은 합산 시간(미결, 예 30분) 안에서 1건.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SensitiveViewCreate'
+      responses:
+        '201':
+          description: 기록됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SensitiveViewRecorded'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooMany'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 서버가 호출자 신원에서 grant와 역할을 판정한다. 클라이언트가 보내는 역할 값은 신뢰하지 않는다.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+      description: 모든 명령 API 필수. 오프라인 큐 재전송 시 같은 키를 재사용한다.
+  responses:
+    Unauthorized:
+      description: 인증 실패
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VLP-AUTH-401
+            message: 로그인이 필요합니다
+    NotFound:
+      description: 없음 또는 권한 없음(구분하지 않는다)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VLP-RES-404
+            message: 찾을 수 없습니다
+    Conflict:
+      description: 상태 충돌 또는 중복
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VLP-STATE-409
+            message: 현재 상태에서 할 수 없습니다
+    Unprocessable:
+      description: 검증 실패
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VLP-VAL-422
+            message: 입력을 확인해 주세요
+    TooMany:
+      description: 속도·시도 제한
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VLP-RATE-429
+            message: 잠시 후 다시 시도해 주세요
+  schemas:
+    DisplayState:
+      type: string
+      enum:
+      - READY
+      - DISPATCHED
+      - IN_TRANSIT
+      - CUSTOMIZING
+      - DELIVERED
+      - CONFIRMED
+      - EXCEPTION
+      description: 표시 상태 7종. CUSTOMIZING·EXCEPTION은 이벤트에서 파생하며 저장하지 않는다. 열거 값은 추가에 열려 있다.
+    StorageState:
+      type: string
+      enum:
+      - PLANNED
+      - SHIPPED
+      - IN_TRANSIT
+      - ARRIVED
+      - DELIVERED
+      description: 플랫폼 저장 상태. READY=PLANNED, DISPATCHED=SHIPPED, IN_TRANSIT, DELIVERED(도착)=ARRIVED, CONFIRMED=DELIVERED.
+    ContractStatus:
+      type: string
+      enum:
+      - PENDING_APPROVAL
+      - APPROVED
+      - REJECTED
+      - EXPIRED
+      - CANCELLED
+    DestinationType:
+      type: string
+      enum:
+      - DEALERSHIP
+      - AFFILIATED_SHOP
+      - CUSTOM_ADDRESS
+    ReceiptMode:
+      type: string
+      enum:
+      - ON_SITE
+      - REMOTE_PROXY
+      description: 인도의 인수 방식. 신차케어의 수령 방식과 별개 필드다.
+    SourceType:
+      type: string
+      enum:
+      - AUTO
+      - MANAGER
+      description: GPS는 값 추가로 확장한다.
+    ContractCreate:
+      type: object
+      properties:
+        manufacturerContractNo:
+          type: string
+        vehicleModel:
+          type: string
+        carmasterPhone:
+          type: string
+        brand:
+          type: string
+        trim:
+          type: string
+        color:
+          type: string
+        contractDate:
+          type: string
+          format: date
+        carmasterName:
+          type: string
+        dealershipName:
+          type: string
+        memo:
+          type: string
+      required:
+      - manufacturerContractNo
+      - vehicleModel
+      - carmasterPhone
+    ContractCreated:
+      type: object
+      properties:
+        contractId:
+          type: string
+          format: uuid
+        serviceContractNo:
+          type: string
+          pattern: ^SS-\d{6}-\d{4}$
+        claimToken:
+          type: string
+          nullable: true
+          description: 조회번호. 카마스터 미가입일 때만, 이 응답에서 1회. 이후 재조회 불가.
+        carmasterMatched:
+          type: boolean
+        grantId:
+          type: string
+          format: uuid
+          nullable: true
+          description: "[PROPOSED-ADD] 미가입 카마스터 접근 권한 id. 조회번호를 잃었을 때 고객이 재발급(access.reissue)하는 데 쓴다. 가입 카마스터면 null."
+      required:
+      - contractId
+      - serviceContractNo
+      - carmasterMatched
+    Contract:
+      type: object
+      properties:
+        grantId:
+          type: string
+          format: uuid
+          nullable: true
+          description: "[PROPOSED-ADD] 고객 본인 조회에서만, 조회번호가 아직 쓰이지 않은(대기·만료) 미가입 카마스터 건의 권한 id. 재발급(access.reissue)에 쓴다."
+        contractId:
+          type: string
+          format: uuid
+        serviceContractNo:
+          type: string
+        manufacturerContractNo:
+          type: string
+        status:
+          $ref: '#/components/schemas/ContractStatus'
+        vehicleModel:
+          type: string
+        trim:
+          type: string
+        color:
+          type: string
+        contractDate:
+          type: string
+          format: date
+        customerDisplayName:
+          type: string
+        carmaster:
+          type: object
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            dealershipName:
+              type: string
+        destinationType:
+          $ref: '#/components/schemas/DestinationType'
+        deliveryId:
+          type: string
+          format: uuid
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+        masked:
+          type: boolean
+          description: 승인 전 최소 정보만 반환했는가
+      required:
+      - contractId
+      - status
+    ContractPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contract'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+    GrantPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Grant'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+    TimelinePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineEntry'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+    MessagePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+    CollectionStatusPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectionStatus'
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+      - items
+    ApproveRequest:
+      type: object
+      properties:
+        destinationType:
+          $ref: '#/components/schemas/DestinationType'
+        consultationMemo:
+          type: string
+        partnerName:
+          type: string
+          description: 협력업체명(내부 전용)
+      required:
+      - destinationType
+    RejectRequest:
+      type: object
+      properties:
+        reasonCode:
+          type: string
+        note:
+          type: string
+      required:
+      - reasonCode
+    ReleaseRequest:
+      type: object
+      properties:
+        deliverySiteId:
+          type: string
+          format: uuid
+        customAddress:
+          type: string
+        receiptMode:
+          $ref: '#/components/schemas/ReceiptMode'
+        proxyConsent:
+          type: boolean
+          description: REMOTE_PROXY 선택 시 대리 인수 위임 동의. true 필수.
+      required:
+      - receiptMode
+    ReleaseOrder:
+      type: object
+      properties:
+        memo:
+          type: string
+    ClaimRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+        manufacturerContractNo:
+          type: string
+        claimToken:
+          type: string
+        pin:
+          type: string
+          description: "[PROPOSED-ADD] 확인번호(숫자 N자리, 설정 pinLength). 처음이면 새로 정하는 번호, 이미 정했다면 그 번호."
+        pinConfirm:
+          type: string
+          description: "[PROPOSED-ADD] 처음 정할 때(계정이 없거나 휴면)만 필수: pin과 같은 값."
+      required:
+      - phone
+      - claimToken
+      - pin
+    LoginRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+        pin:
+          type: string
+      required:
+      - phone
+      - pin
+    Session:
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          nullable: true
+          description: 이 응답에서만 평문. 멱등 재전송 응답에는 싣지 않는다.
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - sessionToken
+    Notification:
+      type: object
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+        text:
+          type: string
+        refType:
+          type: string
+          enum:
+          - contract
+          - delivery
+        refId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        read:
+          type: boolean
+      required:
+      - notificationId
+      - text
+      - refType
+      - refId
+      - createdAt
+      - read
+    NotificationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        nextCursor:
+          type: string
+          nullable: true
+        unreadCount:
+          type: integer
+      required:
+      - items
+      - unreadCount
+    Grant:
+      type: object
+      properties:
+        grantId:
+          type: string
+          format: uuid
+        contractId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - PENDING_CLAIM
+          - ACTIVE
+          - EXPIRED
+          - REVOKED
+          - REJECTED
+        expiresAt:
+          type: string
+          format: date-time
+        sessionToken:
+          type: string
+          nullable: true
+          description: "[PROPOSED-ADD] claim 성공 시 이후 요청에 쓰는 세션 토큰. 이 응답에서만 평문."
+      required:
+      - grantId
+      - status
+    Delivery:
+      type: object
+      properties:
+        deliveryId:
+          type: string
+          format: uuid
+        contractId:
+          type: string
+          format: uuid
+        displayState:
+          $ref: '#/components/schemas/DisplayState'
+        storageState:
+          $ref: '#/components/schemas/StorageState'
+        destinationType:
+          $ref: '#/components/schemas/DestinationType'
+        receiptMode:
+          $ref: '#/components/schemas/ReceiptMode'
+        deliverySite:
+          type: object
+          properties:
+            name:
+              type: string
+            address:
+              type: string
+            isHome:
+              type: boolean
+        deliveryCompany:
+          type: object
+          properties:
+            name:
+              type: string
+            mainPhone:
+              type: string
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              state:
+                $ref: '#/components/schemas/DisplayState'
+              at:
+                type: string
+                format: date-time
+              done:
+                type: boolean
+        ratingTargets:
+          type: array
+          description: "[PROPOSED-ADD] 평가 대상 ID. 평가 화면이 targetId를 알 방법이 없어 배송 응답에 담는다."
+          items:
+            type: object
+            properties:
+              targetType:
+                type: string
+                enum:
+                - KARMASTER
+                - SHOP
+                - DELIVERY_COMPANY
+              targetId:
+                type: string
+                format: uuid
+              name:
+                type: string
+      required:
+      - deliveryId
+      - displayState
+    TimelineEntry:
+      type: object
+      properties:
+        entryId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        text:
+          type: string
+        sourceType:
+          $ref: '#/components/schemas/SourceType'
+        observedAt:
+          type: string
+          format: date-time
+        published:
+          type: boolean
+        exceptionId:
+          type: string
+          format: uuid
+          description: "[PROPOSED-ADD] 지연 발생·해소 항목이 가리키는 지연 ID (해소할 때 필요)."
+        augmentationId:
+          type: string
+          format: uuid
+          description: "[PROPOSED-ADD] 보강정보 초안·게시 항목의 보강정보 ID. 카마스터·관리자 응답에만 있고 고객 응답에는 없다."
+        audience:
+          type: string
+          enum:
+          - INTERNAL
+          - CUSTOMER
+          description: "[PROPOSED-ADD] 보강정보 항목의 공개 대상. 카마스터·관리자 응답에만 있다."
+      required:
+      - entryId
+      - type
+      - observedAt
+    LocationObservation:
+      type: object
+      properties:
+        regionText:
+          type: string
+        sourceType:
+          $ref: '#/components/schemas/SourceType'
+        observedAt:
+          type: string
+          format: date-time
+      required:
+      - regionText
+      - sourceType
+      - observedAt
+    LocationView:
+      type: object
+      properties:
+        latest:
+          $ref: '#/components/schemas/LocationObservation'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationObservation'
+        collectionStatus:
+          type: string
+          enum:
+          - NOT_STARTED
+          - COLLECTING
+          - STALE
+          - STOPPED
+        lastAutoCollectedAt:
+          type: string
+          format: date-time
+        destinationAddress:
+          type: string
+      required:
+      - collectionStatus
+    CollectionStatus:
+      type: object
+      properties:
+        deliveryId:
+          type: string
+          format: uuid
+        collectionStatus:
+          type: string
+        lastAutoCollectedAt:
+          type: string
+          format: date-time
+        staleMinutes:
+          type: integer
+    AugmentationCreate:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - LOCATION
+          - NOTE
+          - CUSTOMIZING
+        text:
+          type: string
+        audience:
+          type: string
+          enum:
+          - INTERNAL
+          - CUSTOMER
+          default: INTERNAL
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - kind
+    Augmentation:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - LOCATION
+          - NOTE
+          - CUSTOMIZING
+        text:
+          type: string
+        audience:
+          type: string
+          enum:
+          - INTERNAL
+          - CUSTOMER
+          default: INTERNAL
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        augmentationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+      required:
+      - kind
+    ExceptionCreate:
+      type: object
+      properties:
+        reasonCode:
+          type: string
+        note:
+          type: string
+      required:
+      - reasonCode
+    Exception:
+      type: object
+      properties:
+        exceptionId:
+          type: string
+          format: uuid
+        reasonCode:
+          type: string
+        raisedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+      required:
+      - exceptionId
+      - reasonCode
+    MediaCreate:
+      type: object
+      properties:
+        purpose:
+          type: string
+          enum:
+          - INTAKE
+          - REQUIRED_SHOT
+          - CUSTOMIZING
+          - OTHER
+        slot:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+        clientCreatedAt:
+          type: string
+          format: date-time
+      required:
+      - purpose
+      - contentType
+    MediaInit:
+      type: object
+      properties:
+        mediaId:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - mediaId
+      - uploadUrl
+    Media:
+      type: object
+      properties:
+        mediaId:
+          type: string
+          format: uuid
+        purpose:
+          type: string
+        slot:
+          type: string
+        status:
+          type: string
+          enum:
+          - PUBLISHED
+          - WITHDRAWN
+        thumbUrl:
+          type: string
+        url:
+          type: string
+    Handover:
+      type: object
+      properties:
+        deliveryId:
+          type: string
+          format: uuid
+        receiverType:
+          type: string
+          enum:
+          - CUSTOMER
+          - PROXY_INSTALLER
+        managerConfirmedAt:
+          type: string
+          format: date-time
+        customerApprovedAt:
+          type: string
+          format: date-time
+        approvalType:
+          type: string
+          enum:
+          - ON_SITE
+          - REMOTE
+        requiredShotsDone:
+          type: boolean
+        inspectionItems:
+          type: array
+          items:
+            type: object
+            properties:
+              item:
+                type: string
+              result:
+                type: string
+                enum:
+                - PASS
+                - FAIL
+                - NA
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        media:
+          type: array
+          description: "[PROPOSED-ADD] 인수 사진의 보기 주소. 고객이 사진을 열람(원격 승인 전 필수)하려면 ID만으로는 그릴 수 없다."
+          items:
+            $ref: '#/components/schemas/Media'
+      required:
+      - deliveryId
+    CustomerApproval:
+      type: object
+      properties:
+        approvalType:
+          type: string
+          enum:
+          - ON_SITE
+          - REMOTE
+        viewedMediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        memo:
+          type: string
+        signature:
+          type: string
+        overrideReason:
+          type: string
+      required:
+      - approvalType
+    ProxyReceipt:
+      type: object
+      properties:
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+        note:
+          type: string
+      required:
+      - mediaIds
+    RatingCreate:
+      type: object
+      properties:
+        targetType:
+          type: string
+          enum:
+          - KARMASTER
+          - SHOP
+          - DELIVERY_COMPANY
+        targetId:
+          type: string
+          format: uuid
+        deliveryId:
+          type: string
+          format: uuid
+        aspects:
+          type: array
+          items:
+            type: object
+            properties:
+              aspect:
+                type: string
+              score:
+                type: integer
+                minimum: 1
+                maximum: 5
+            required:
+            - aspect
+            - score
+        comment:
+          type: string
+      required:
+      - targetType
+      - targetId
+      - aspects
+    Rating:
+      type: object
+      properties:
+        ratingId:
+          type: string
+          format: uuid
+        targetType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    PointSummary:
+      type: object
+      properties:
+        balance:
+          type: integer
+        ledger:
+          type: array
+          items:
+            type: object
+            properties:
+              delta:
+                type: integer
+              reason:
+                type: string
+              at:
+                type: string
+                format: date-time
+    MessageCreate:
+      type: object
+      properties:
+        body:
+          type: string
+          maxLength: 2000
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - body
+    Message:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+        senderRole:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        readBy:
+          type: array
+          items:
+            type: string
+        masked:
+          type: boolean
+          description: "[PROPOSED-ADD] 관리자가 열람 사유(CHAT_FULL)를 남기기 전에는 true이고 body는 빈 문자열이다 (BR-12)."
+      required:
+      - messageId
+      - body
+      - createdAt
+    SensitiveViewCreate:
+      type: object
+      properties:
+        viewType:
+          type: string
+          enum:
+          - CHAT_FULL
+          - CONSULT_MEMO_FULL
+          - CUSTOMER_PHONE_SHOWN
+          - AUDIT_VIEW
+        contractId:
+          type: string
+          format: uuid
+        reasonCode:
+          type: string
+      required:
+      - viewType
+      - contractId
+      - reasonCode
+    SensitiveViewRecorded:
+      type: object
+      properties:
+        recorded:
+          type: boolean
+        merged:
+          type: boolean
+          description: 합산 시간 안의 기존 기록에 합쳐졌는가
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        traceId:
+          type: string
+      required:
+      - code
+      - message

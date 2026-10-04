@@ -1,0 +1,18 @@
+{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "ContractRegistered",
+  "version": 1,
+  "occurredAt": "2026-10-02T09:00:00.000Z",
+  "contractId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "deliveryId": null,
+  "actor": {
+    "role": "customer",
+    "userId": "cust-1"
+  },
+  "payload": {
+    "serviceContractNo": "SS-202610-0001",
+    "carmasterMatched": false,
+    "grantStatus": "PENDING_CLAIM",
+    "vehicleModel": "아이오닉 6"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "ContractApprovedByCarmaster",
+  "version": 1,
+  "occurredAt": "2026-10-02T09:00:00.000Z",
+  "contractId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "deliveryId": null,
+  "actor": {
+    "role": "karmaster",
+    "userId": "km-1"
+  },
+  "payload": {
+    "destinationType": "AFFILIATED_SHOP"
+  }
+}

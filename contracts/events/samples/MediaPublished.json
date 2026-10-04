@@ -1,0 +1,17 @@
+{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "MediaPublished",
+  "version": 1,
+  "occurredAt": "2026-10-02T09:00:00.000Z",
+  "contractId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "deliveryId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "actor": {
+    "role": "system",
+    "userId": "system"
+  },
+  "payload": {
+    "mediaId": "77777777-7777-4777-8777-777777777777",
+    "purpose": "REQUIRED_SHOT",
+    "slot": "EXTERIOR_FRONT"
+  }
+}

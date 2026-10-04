@@ -1,0 +1,43 @@
+{
+  "pages": {
+    "customer": {
+      "loadMsAt4xCpu": 871,
+      "base": {
+        "overflow": 0,
+        "minFontPx": 0,
+        "smallTargets": 2,
+        "lowContrast": 0,
+        "unnamed": 0
+      },
+      "at200": {
+        "overflow": 0
+      },
+      "smallTargetsList": [
+        "btn btn-sm vlp-chat-open-btn vlp-case-chat 64x28",
+        "vlp-case-stp 32x28"
+      ],
+      "lowContrastList": [],
+      "unnamedList": []
+    },
+    "karmaster": {
+      "loadMsAt4xCpu": 2036,
+      "base": {
+        "overflow": 0,
+        "minFontPx": 0,
+        "smallTargets": 3,
+        "lowContrast": 0,
+        "unnamed": 0
+      },
+      "at200": {
+        "overflow": 0
+      },
+      "smallTargetsList": [
+        "btn btn-sm vlp-chat-open-btn vlp-case-chat 64x28",
+        "vlp-case-stp 32x28",
+        "vlp-il-memo 155x32"
+      ],
+      "lowContrastList": [],
+      "unnamedList": []
+    }
+  }
+}

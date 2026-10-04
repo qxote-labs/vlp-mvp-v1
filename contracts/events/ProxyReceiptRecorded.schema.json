@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vlp.invalid/schemas/events/ProxyReceiptRecorded.schema.json",
+  "title": "ProxyReceiptRecorded",
+  "description": "시공사 대리 인수가 기록됐다. (명명: PascalCase, 실행계획서 5장. lifecycle_event와의 통일 여부는 JEFLIX [미결])",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "ProxyReceiptRecorded"
+    },
+    "version": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contractId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "deliveryId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "customer",
+            "karmaster",
+            "shop",
+            "admin",
+            "system"
+          ]
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "role",
+        "userId"
+      ],
+      "additionalProperties": false
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "mediaCount": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "mediaCount"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "eventId",
+    "eventType",
+    "version",
+    "occurredAt",
+    "contractId",
+    "deliveryId",
+    "actor",
+    "payload"
+  ],
+  "additionalProperties": false
+}

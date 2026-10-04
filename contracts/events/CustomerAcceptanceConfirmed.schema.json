@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vlp.invalid/schemas/events/CustomerAcceptanceConfirmed.schema.json",
+  "title": "CustomerAcceptanceConfirmed",
+  "description": "고객 최종 승인이 기록됐다. override 사유 본문은 싣지 않고 사용 여부만. (명명: PascalCase, 실행계획서 5장. lifecycle_event와의 통일 여부는 JEFLIX [미결])",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "CustomerAcceptanceConfirmed"
+    },
+    "version": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contractId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "deliveryId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "customer",
+            "karmaster",
+            "shop",
+            "admin",
+            "system"
+          ]
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "role",
+        "userId"
+      ],
+      "additionalProperties": false
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "approvalType": {
+          "type": "string",
+          "enum": [
+            "ON_SITE",
+            "REMOTE"
+          ]
+        },
+        "overrideUsed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "approvalType",
+        "overrideUsed"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "eventId",
+    "eventType",
+    "version",
+    "occurredAt",
+    "contractId",
+    "deliveryId",
+    "actor",
+    "payload"
+  ],
+  "additionalProperties": false
+}

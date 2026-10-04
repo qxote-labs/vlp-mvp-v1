@@ -1,0 +1,15 @@
+{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "AccessGrantClaimed",
+  "version": 1,
+  "occurredAt": "2026-10-02T09:00:00.000Z",
+  "contractId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "deliveryId": null,
+  "actor": {
+    "role": "system",
+    "userId": "system"
+  },
+  "payload": {
+    "grantId": "88888888-8888-4888-8888-888888888888"
+  }
+}

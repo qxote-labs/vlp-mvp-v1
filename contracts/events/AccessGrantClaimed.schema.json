@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vlp.invalid/schemas/events/AccessGrantClaimed.schema.json",
+  "title": "AccessGrantClaimed",
+  "description": "카마스터가 조회번호로 접근 권한을 열었다. 번호는 싣지 않는다. (명명: PascalCase, 실행계획서 5장. lifecycle_event와의 통일 여부는 JEFLIX [미결])",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "AccessGrantClaimed"
+    },
+    "version": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contractId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "deliveryId": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "customer",
+            "karmaster",
+            "shop",
+            "admin",
+            "system"
+          ]
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "role",
+        "userId"
+      ],
+      "additionalProperties": false
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "grantId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "grantId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "eventId",
+    "eventType",
+    "version",
+    "occurredAt",
+    "contractId",
+    "deliveryId",
+    "actor",
+    "payload"
+  ],
+  "additionalProperties": false
+}

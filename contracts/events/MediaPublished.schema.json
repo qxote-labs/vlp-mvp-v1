@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vlp.invalid/schemas/events/MediaPublished.schema.json",
+  "title": "MediaPublished",
+  "description": "사진 등록이 완료됐다. (명명: PascalCase, 실행계획서 5장. lifecycle_event와의 통일 여부는 JEFLIX [미결])",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "MediaPublished"
+    },
+    "version": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contractId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "deliveryId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "customer",
+            "karmaster",
+            "shop",
+            "admin",
+            "system"
+          ]
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "role",
+        "userId"
+      ],
+      "additionalProperties": false
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "mediaId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "INTAKE",
+            "REQUIRED_SHOT",
+            "CUSTOMIZING",
+            "OTHER"
+          ]
+        },
+        "slot": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "mediaId",
+        "purpose",
+        "slot"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "eventId",
+    "eventType",
+    "version",
+    "occurredAt",
+    "contractId",
+    "deliveryId",
+    "actor",
+    "payload"
+  ],
+  "additionalProperties": false
+}

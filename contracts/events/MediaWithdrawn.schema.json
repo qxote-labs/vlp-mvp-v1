@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vlp.invalid/schemas/events/MediaWithdrawn.schema.json",
+  "title": "MediaWithdrawn",
+  "description": "사진이 회수됐다. (명명: PascalCase, 실행계획서 5장. lifecycle_event와의 통일 여부는 JEFLIX [미결])",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "MediaWithdrawn"
+    },
+    "version": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contractId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "deliveryId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "customer",
+            "karmaster",
+            "shop",
+            "admin",
+            "system"
+          ]
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "role",
+        "userId"
+      ],
+      "additionalProperties": false
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "mediaId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "mediaId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "eventId",
+    "eventType",
+    "version",
+    "occurredAt",
+    "contractId",
+    "deliveryId",
+    "actor",
+    "payload"
+  ],
+  "additionalProperties": false
+}

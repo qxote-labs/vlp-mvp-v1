@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>레이아웃 뼈대 검증용 (PWA-05, 화면 티켓이 쓸 클래스 확인)</title>
+<link rel="stylesheet" href="../../app.css"></head>
+<body>
+<!-- 역할 작업 큐형(카마스터·시공사·관리자) -->
+<div class="vlp-shell" id="queue-shell">
+  <aside class="vlp-list" id="list"><h3>작업 큐</h3><div>VLP-0001 아이오닉 6 · 승인 대기</div><div>VLP-0002 쏘나타 · 진행</div></aside>
+  <main class="vlp-detail" id="detail">
+    <header class="vlp-status"><span class="vlp-state" data-state="IN_TRANSIT">탁송 중</span><div class="vlp-status-actions" id="actions"><button class="btn btn-sm btn-primary">보강 입력</button></div></header>
+    <p>가운데 상세 영역: 계약 상세 펼침 카드, 요약·타임라인 탭이 들어간다. 긴 문자열 테스트: SS-202610-0001-ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ</p>
+    <table><tr><th>항목</th><th>값</th><th>출처</th><th>시각</th></tr><tr><td>현재 위치</td><td>경북 구미</td><td>자동 수집</td><td>2026-10-02 18:30</td></tr></table>
+  </main>
+  <aside class="vlp-chat" id="chat">
+    <div class="vlp-chat-head">SS-202610-0001 · 아이오닉 6 · 홍*동 · 탁송 중</div>
+    <div class="vlp-chat-body" id="chat-body"><div class="msg-bubble theirs">이전 대화 1</div><div class="msg-bubble mine">이전 대화 2</div><div class="msg-bubble theirs">최신 메시지</div></div>
+    <div class="vlp-chat-input"><textarea rows="1" placeholder="메시지"></textarea><button class="btn btn-primary btn-sm">전송</button></div>
+  </aside>
+</div>
+<hr>
+<!-- 고객형: 목록 열 대신 차량 전환 칩 줄 -->
+<div class="vlp-shell is-customer" id="customer-shell">
+  <nav class="vlp-chips" id="chips"><button class="active">아이오닉 6</button><button>쏘나타</button><button>그랜저</button><button>싼타페</button><button>투싼</button><button>코나</button><button>팰리세이드</button></nav>
+  <main class="vlp-detail"><header class="vlp-status"><span class="vlp-state" data-state="EXCEPTION">지연·예외</span><div class="vlp-status-actions"><button class="btn btn-sm btn-primary">인수 확인</button></div></header><p>고객 상세</p></main>
+  <aside class="vlp-chat"><div class="vlp-chat-head">대화</div><div class="vlp-chat-body"></div><div class="vlp-chat-input"><textarea rows="1"></textarea><button class="btn btn-primary btn-sm">전송</button></div></aside>
+</div>
+<div class="vlp-hab" id="hab"><button class="btn btn-outline">문의</button><button class="btn btn-primary">인수 확인</button></div>
+</body></html>

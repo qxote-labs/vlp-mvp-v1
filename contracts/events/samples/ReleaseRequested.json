@@ -1,0 +1,16 @@
+{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "ReleaseRequested",
+  "version": 1,
+  "occurredAt": "2026-10-02T09:00:00.000Z",
+  "contractId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "deliveryId": null,
+  "actor": {
+    "role": "system",
+    "userId": "system"
+  },
+  "payload": {
+    "receiptMode": "REMOTE_PROXY",
+    "hasSite": true
+  }
+}

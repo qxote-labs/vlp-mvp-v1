@@ -1,0 +1,17 @@
+{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "AugmentationPublished",
+  "version": 1,
+  "occurredAt": "2026-10-02T09:00:00.000Z",
+  "contractId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "deliveryId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "actor": {
+    "role": "system",
+    "userId": "system"
+  },
+  "payload": {
+    "augmentationId": "55555555-5555-4555-8555-555555555555",
+    "kind": "LOCATION",
+    "audience": "CUSTOMER"
+  }
+}
