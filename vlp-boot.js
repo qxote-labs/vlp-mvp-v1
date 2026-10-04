@@ -101,3 +101,64 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })(typeof window !== 'undefined' ? window : globalThis);
+
+/* 카마스터·시공사 2단(목록 | 상세): 창이 충분히 높으면(설정 fitPanesMinHeight, 기본 700px 이상) 목록·상세를 "화면 높이에 맞춘 칸"으로 만들어 각자 안에서만 스크롤하게 한다.
+ * 칸 높이 = 화면 높이 − 칸 윗선 − 아래 여백(26px). 칸 윗선 위치는 화면마다 달라 여기서 재서 --pane-top 으로 CSS에 넘긴다.
+ * 낮은 창·폰은 이 클래스를 달지 않아 기존대로 페이지 전체가 스크롤된다. 목록 아래에 항목이 더 있으면 .more-below 를 달아 "더 있음" 표시를 켠다. */
+(function (g) {
+  'use strict';
+  const MIN_H = (() => { try { return (g.VLP && g.VLP.config && g.VLP.config.get('fitPanesMinHeight')) || 700; } catch (e) { return 700; } })(), MIN_W = 768; // 노트북 브라우저 높이(약 700~800px)에서도 칸 모드가 켜지도록 700 [제안]
+  let raf = 0, listEl = null, mo = null;
+  const watch = () => { if (mo) try { mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-tab'] }); } catch (e) { /* 무시 */ } };
+  const onListScroll = () => { if (listEl) listEl.classList.toggle('more-below', listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight > 4); };
+  const update = () => {
+    raf = 0;
+    if (mo) mo.disconnect(); // 이 함수가 바꾸는 클래스가 다시 이 함수를 부르지 않게 잠시 끊는다
+    try { run(); } finally { watch(); }
+  };
+  const run = () => {
+    const app = document.querySelector('.vlp-app-karmaster.has-case.lay-top[data-tab=clients], .vlp-app-shop.has-case.lay-top[data-tab=clients], .vlp-app-admin.lay-top[data-tab=cases], .vlp-app-admin.lay-top[data-tab=care]');
+    const all = document.querySelectorAll('.vlp-app.fit-panes');
+    all.forEach((a) => { if (a !== app) { a.classList.remove('fit-panes'); const l = a.querySelector('.vlp-app-list'); if (l) l.classList.remove('more-below'); } });
+    if (!app) { listEl = null; return; }
+    const list = app.querySelector('.vlp-app-list');
+    const det0 = app.querySelector('.vlp-app-detail'), closed = !!list && getComputedStyle(list).display === 'none'; // 목록을 접어도 상세 칸은 같은 높이 규칙을 따른다
+    const ok = g.innerWidth >= MIN_W && g.innerHeight >= MIN_H && list && (!closed || det0);
+    if (!ok) { app.classList.remove('fit-panes'); if (list) list.classList.remove('more-below'); listEl = null; return; }
+    const was = app.classList.contains('fit-panes'); if (!was) app.classList.add('fit-panes'); // 이미 켜져 있으면 건드리지 않는다(껐다 켜면 목록 스크롤 위치가 초기화됨)
+    const pr = closed ? det0 : list; // 잴 기준 칸(목록이 접히면 상세)
+    const top = Math.round(pr.getBoundingClientRect().top + (g.scrollY || 0)); // 칸이 시작하는 페이지 기준 위치
+    // 칸 아래에 남는 틀 안쪽 여백·틀 바깥 여백. 목록이 짧아 페이지가 화면보다 낮으면 scrollHeight가 화면 높이로 고정돼 아래 여백이 부풀려지므로, 칸을 잠깐 아주 크게 만들어 잰다.
+    const keepH = pr.style.height, keepT = pr.scrollTop, det = det0, keepDT = det ? det.scrollTop : 0; pr.style.height = '9999px';
+    const below = Math.max(0, document.documentElement.scrollHeight - Math.round(pr.getBoundingClientRect().bottom + (g.scrollY || 0)));
+    pr.style.height = keepH; pr.scrollTop = keepT; if (det) det.scrollTop = keepDT; // 늘렸다 줄이면 스크롤 위치가 0으로 돌아가므로 되돌린다
+    const root = document.documentElement.style;
+    if (root.getPropertyValue('--pane-top') !== top + 'px') root.setProperty('--pane-top', top + 'px');
+    if (root.getPropertyValue('--pane-below') !== below + 'px') root.setProperty('--pane-below', below + 'px');
+    // 소수점 배율(125% 등)에서 반올림 때문에 페이지가 1~몇 px 넘쳐 창 스크롤 막대가 생기는 경우: 넘친 만큼 아래 여백을 더 빼 맞춘다
+    { const ex = document.documentElement.scrollHeight - g.innerHeight; if (ex > 0 && ex < 48) root.setProperty('--pane-below', (below + ex) + 'px'); }
+    if (g.scrollY > 0 && !was) try { g.scrollTo(0, 0); } catch (e) { /* 무시 */ }
+    if (listEl !== list) { if (listEl) listEl.removeEventListener('scroll', onListScroll); listEl = list; list.addEventListener('scroll', onListScroll, { passive: true }); }
+    onListScroll();
+  };
+  // 진단용: 주소에 ?fitdebug=1 을 붙이면 오른쪽 아래에 창 크기와 칸 모드 상태를 표시한다(평소엔 아무것도 하지 않음).
+  const dbg = (() => { try { return /[?&]fitdebug=1/.test(g.location.search); } catch (e) { return false; } })();
+  const paintDbg = () => {
+    if (!dbg) return; let d = document.getElementById('vlp-fitdbg');
+    if (!d) { d = document.createElement('div'); d.id = 'vlp-fitdbg'; d.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99999;background:#222;color:#fff;font:12px/1.4 monospace;padding:6px 10px;border-radius:8px;opacity:.92;pointer-events:none;white-space:pre'; document.body.appendChild(d); }
+    const app = document.querySelector('.vlp-app'), list = app && app.querySelector('.vlp-app-list'), r = list ? list.getBoundingClientRect() : null, cs = list ? g.getComputedStyle(list) : null;
+    const doc = document.documentElement, rt = g.getComputedStyle(doc);
+    d.textContent = '창 ' + g.innerWidth + '×' + g.innerHeight + ' (배율 ' + g.devicePixelRatio + ')\n기준 높이 ' + MIN_H + ' · 폭 ' + MIN_W + '\n칸 모드 ' + (app && app.classList.contains('fit-panes') ? 'ON' : 'OFF') + ' · 앱 ' + (app ? app.className.replace(/vlp-app\s*/, '') : '-') + '\n페이지 넘침 ' + (doc.scrollHeight - g.innerHeight) + 'px · 목록 ' + (r ? Math.round(r.top) + '~' + Math.round(r.bottom) : '-') + ' ' + (cs ? cs.position + '/' + cs.overflowY : '') + '\n--pane-top ' + (rt.getPropertyValue('--pane-top') || '-') + ' · --pane-below ' + (rt.getPropertyValue('--pane-below') || '-');
+  };
+  if (dbg) { g.addEventListener('resize', () => g.setTimeout(paintDbg, 100)); g.setInterval(paintDbg, 700); }
+  const kick = () => { if (!raf) raf = g.requestAnimationFrame(update); };
+  const start = () => {
+    g.addEventListener('resize', kick);
+    try { mo = new MutationObserver(kick); } catch (e) { mo = null; }
+    watch(); kick();
+    // 글꼴·이미지가 늦게 들어와 칸 윗선이 밀리는 경우를 위해 한 번씩 더 맞춘다
+    try { g.addEventListener('load', kick); if (document.fonts && document.fonts.ready) document.fonts.ready.then(kick); } catch (e) { /* 무시 */ }
+    g.setTimeout(kick, 600); g.setTimeout(kick, 2000);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})(typeof window !== 'undefined' ? window : globalThis);

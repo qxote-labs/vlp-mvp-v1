@@ -43,11 +43,15 @@ const BASE = 'http://localhost:8000';
     // 관리자: 읽기 전용, 사유를 남기기 전에는 본문이 가려진다
     const ad = await ctx.newPage(); ad.on('pageerror', e => errs.push(e.message)); await ad.setViewportSize({ width: 1440, height: 900 });
     await loginAs(ad, 'supervisor', 'admin_super', '');
-    await ad.click('.vlp-adm-nav-btn[data-menu=care]'); await ad.waitForSelector('#admin-care-list tr.clickable');
-    await ad.locator('#admin-care-list tr.clickable', { hasText: cid }).first().click(); await ad.click('#care-chat-open'); await ad.waitForSelector('.vlp-chatdock');
+    await ad.click('.vlp-adm-nav-btn[data-menu=care]'); await ad.waitForSelector('#admin-care-list .vlp-case-row');
+    await ad.locator('#admin-care-list .vlp-case-row', { hasText: cid }).first().click(); await ad.click('#care-chat-open'); await ad.waitForSelector('.vlp-chatdock');
     assert.strictEqual(await ad.locator('.vlp-chatdock textarea').count(), 0, '입력창 없음');
     await ad.waitForSelector('.vlp-chat-masked'); assert.ok(!/네 알겠습니다/.test(await ad.locator('.vlp-chatdock .vlp-chat-body').innerText()));
     await ad.click('.vlp-chat-reason'); await ad.selectOption('#vlp-reason-sel', 'COMPLAINT'); await ad.click('.vlp-reason-go');
+    await ad.waitForFunction(() => /동의를 기다리는 중/.test((document.querySelector('.vlp-chat-masked') || { innerText: '' }).innerText));
+    assert.ok(await ad.evaluate((i) => VLP.careApi.admin.recordView(i, 'COMPLAINT').then(() => false, (e) => e.status === 403), cid), '동의 없이는 열람 기록을 남길 수 없음(403)');
+    await ad.evaluate((i) => { const c = Store.latestChatConsent(i); Store.respondChatConsent(c.id, 'customer', true); Store.respondChatConsent(c.id, 'other', true); }, cid);
+    await ad.waitForSelector('.vlp-chat-view', { timeout: 8000 }); await ad.click('.vlp-chat-view');
     await ad.waitForFunction(() => /네 알겠습니다/.test(document.querySelector('.vlp-chatdock .vlp-chat-body').innerText), null, { timeout: 5000 });
     assert.strictEqual(await ad.evaluate((i) => Store.getCareOrder(i).chatViews.length, cid), 1);
     console.log('✔ 관리자: 읽기 전용, 사유 전 본문 가림 → 사유 기록 후 열람');

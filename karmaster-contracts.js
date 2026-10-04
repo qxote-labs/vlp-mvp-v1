@@ -17,7 +17,7 @@
       <div id="kc-body" aria-live="polite"><div class="hint">불러오는 중…</div></div>
     </div>`);
     const body = wrap.querySelector('#kc-body'), kpi = wrap.querySelector('#kc-kpi');
-    let lastSig = null; const open = {};
+    let lastSig = null, lastChatSig = null; const open = {};
 
     function approveBox(c, reload) {
       const box = el(`<div class="vlp-approve">
@@ -88,11 +88,12 @@
     const FILTERS = [['all', '전체'], ['pending', '승인 대기'], ['order', '출고 의뢰'], ['moving', '배송 중'], ['delay', '지연'], ['done', '완료']];
     kpi.remove();
     const app = el('<div class="vlp-app vlp-app-karmaster"><div class="vlp-app-strip" hidden></div><div class="vlp-app-list"></div><div class="vlp-app-detail"></div><nav class="vlp-bottomnav" aria-label="주 메뉴"></nav></div>');
+    try { app.classList.toggle('list-closed', !!(window.VLP && VLP.caseView && VLP.caseView.listClosed && VLP.caseView.listClosed())); } catch (e) { /* 무시 */ } // 접힘을 첫 그림부터 적용(나중에 적용하면 목록이 한 번 보였다 사라져 깜박임)
     body.innerHTML = ''; body.appendChild(app);
     const listPane = app.querySelector('.vlp-app-list'), detailPane = app.querySelector('.vlp-app-detail'), nav = app.querySelector('.vlp-bottomnav'), strip = app.querySelector('.vlp-app-strip');
     const layTop = (() => { let q = ''; try { q = new URLSearchParams(g.location.search).get('lay') || ''; } catch (e) { /* 무시 */ } return (q || V.config.get('karmasterLayout') || 'side') === 'top'; })(); // 상태 띠(가로) + 목록|상세, 상단 메뉴 — 'side'면 이전(좌측 메뉴·칩이 목록 안)
     if (layTop) app.classList.add('lay-top');
-    let data = { items: [], deliveries: {}, tracking: {}, chat: {} }, filter = 'all', curDetail = null, loaded = false, pendingOpen = null;
+    let data = { items: [], deliveries: {}, tracking: {}, chat: {} }, filter = 'all', curDetail = null, loaded = false, pendingOpen = null, dropHidden = false;
     const wide = () => g.matchMedia && g.matchMedia('(min-width: 768px)').matches;
     const tabKey = 'vlp_km_tab';
     const getTab = () => { try { return sessionStorage.getItem(tabKey) || 'today'; } catch (e) { return 'today'; } };
@@ -179,7 +180,7 @@
     // ---- 목록 쪽(탭별) ----
     function head(title) { const h = el('<div class="vlp-pane-head"><h2></h2></div>'); h.querySelector('h2').textContent = title; return h; }
     function todayPane(activeId) {
-      const head0 = head('오늘'); head0.appendChild(U.notificationsPanel({ role: 'karmaster', sheet: true, onAuthLost: () => ctx.onAuthLost && ctx.onAuthLost() })); listPane.appendChild(head0);
+      const head0 = head('오늘'); head0.appendChild(U.notificationsPanel({ role: 'karmaster', sheet: true, onAuthLost: () => ctx.onAuthLost && ctx.onAuthLost(), extra: () => V.chat.consentNotes(data.items.map((c) => ({ id: c.contractId, label: c.vehicleModel })), 'karmaster', (id) => { const x = document.querySelector('.vlp-sheet-close'); if (x) x.click(); route.set(id); }) })); listPane.appendChild(head0);
       const all = data.items.map((c) => ({ c, x: describe(c) }));
       const by = (cat) => all.filter(({ x }) => x.cat === cat);
       const arrived = all.filter(({ x }) => x.urgent === '인도 확인 필요');
@@ -217,7 +218,7 @@
     function clientsPane(activeId) {
       const ttl = head('담당 고객'); const inStrip = layTop && wide(); if (!inStrip) listPane.appendChild(ttl);
       const chipRow = el('<div class="vlp-chip-row" role="group" aria-label="상태 필터"></div>'); listPane.appendChild(chipRow);
-      FILTERS.forEach(([id, label]) => { const n = data.items.filter((c) => id === 'all' || describe(c).cat === id).length; const b = el('<button type="button" class="vlp-chip"></button>'); b.dataset.filter = id; b.appendChild(document.createElement('span')).textContent = label; b.appendChild(document.createTextNode(' ')); b.appendChild(document.createElement('b')).textContent = String(n); if (!n && id !== 'all') b.classList.add('zero'); b.setAttribute('aria-pressed', id === filter ? 'true' : 'false'); b.addEventListener('click', () => { filter = id; paint(); }); chipRow.appendChild(b); });
+      FILTERS.forEach(([id, label]) => { const n = data.items.filter((c) => id === 'all' || describe(c).cat === id).length; const b = el('<button type="button" class="vlp-chip"></button>'); b.dataset.filter = id; b.appendChild(document.createElement('span')).textContent = label; b.appendChild(document.createTextNode(' ')); b.appendChild(document.createElement('b')).textContent = String(n); if (!n && id !== 'all') b.classList.add('zero'); b.setAttribute('aria-pressed', id === filter ? 'true' : 'false'); b.addEventListener('click', () => { filter = id; dropHidden = true; paint(); }); chipRow.appendChild(b); });
       if (inStrip) { strip.hidden = false; strip.innerHTML = ''; strip.appendChild(ttl); strip.appendChild(chipRow); } // 제목 → 상태 칩 → 목록|상세 (구매자 '내 차량'과 같은 순서)
       const list = data.items.map((cc) => ({ c: cc, x: describe(cc) })).filter(({ x }) => inFilter(x)).sort((a, b) => (b.x.urgent ? 1 : 0) - (a.x.urgent ? 1 : 0));
       const rowsEl = el('<div class="vlp-rows"></div>'); listPane.appendChild(rowsEl);
@@ -255,6 +256,7 @@
       const tab = getTab(); listPane.innerHTML = ''; strip.hidden = true; strip.innerHTML = '';
       let list = [];
       if (tab === 'today') todayPane(id); else if (tab === 'clients') list = clientsPane(id); else if (tab === 'msgs') msgsPane(); else mePane();
+      if (dropHidden) { dropHidden = false; if (c && tab === 'clients' && !list.some((r) => r.c.contractId === c.contractId)) { c = null; id = null; try { g.history.replaceState(null, '', g.location.pathname + g.location.search); } catch (e) { /* 무시 */ }; /* 대화 패널은 건이 없어도 그대로 둔다(넓은 화면) */ } } // 필터를 바꿔 목록에서 빠진 건은 상세에서도 내린다
       if (!c && wide() && tab === 'clients' && list.length) { c = list[0].c; id = c.contractId; try { g.history.replaceState(null, '', g.location.pathname + g.location.search + '#case=' + encodeURIComponent(id)); } catch (e) { /* 무시 */ } listPane.querySelectorAll('.vlp-case-row').forEach((r) => { if (r.dataset.contractId === id) { r.classList.add('on'); r.setAttribute('aria-current', 'true'); } }); }
       app.classList.toggle('has-case', !!c); app.dataset.tab = tab; paintNav(!!c);
       detailPane.innerHTML = '';
@@ -267,15 +269,18 @@
       const items = page.items || [], deliveries = {}, tracking = {}, chat = {};
       await Promise.all(items.filter((c) => c.deliveryId).map(async (c) => { try { deliveries[c.contractId] = await V.api.deliveries.get(c.deliveryId); tracking[c.contractId] = await V.delivery.fetchTracking(c.deliveryId); } catch (e) { /* 칩만 생략 */ } }));
       try { const n = await V.api.notifications.list({ limit: 50 }); (n.items || []).forEach((x) => { if (!x.read && x.refType === 'contract' && /새 메시지/.test(x.text || '')) (chat[x.refId] = chat[x.refId] || []).push(x.notificationId); }); } catch (e) { /* 배지는 없어도 된다 */ }
-      const sig = JSON.stringify([items, deliveries, tracking, chat, filter, route.get(), getTab()]);
-      if (!force && sig === lastSig) return;
+      const chatSig = JSON.stringify(chat), sig = JSON.stringify([items, deliveries, tracking]); // 데이터만 비교: 필터·탭·선택은 누른 즉시 직접 그리므로 여기 넣으면 다음 폴링에서 같은 화면을 또 그린다
+      if (!force && sig === lastSig) { // 안 읽은 대화 표시만 바뀐 경우(대화창을 열면 읽음 처리됨): 화면을 다시 그리지 않고 배지만 고친다 — 대화창이 열려 있을 때 깜박이던 원인
+        if (chatSig !== lastChatSig) { lastChatSig = chatSig; data.chat = chat; listPane.querySelectorAll('.vlp-case-row').forEach((r) => { const bd = r.querySelector('.vlp-chat-badge'); if (!bd) return; const n = (chat[r.dataset.contractId] || []).length; bd.hidden = !n; bd.textContent = n ? String(n) : ''; }); }
+        return;
+      }
       if (!force && loaded && app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
-      lastSig = sig; data = { items, deliveries, tracking, chat }; loaded = true;
+      lastSig = sig; lastChatSig = chatSig; data = { items, deliveries, tracking, chat }; loaded = true;
       const deepId = V.pushLink && V.pushLink.applyDeep(items, {});
       if (deepId) { try { g.history.replaceState(null, '', g.location.pathname + g.location.search + '#case=' + encodeURIComponent(deepId)); } catch (e) { /* 무시 */ } }
       paint();
     }
-    g.addEventListener('vlp-route', () => { if (!document.body.contains(wrap)) return; lastSig = null; paint(); g.scrollTo && g.scrollTo(0, 0); });
+    g.addEventListener('vlp-route', () => { if (!document.body.contains(wrap)) return; paint(); g.scrollTo && g.scrollTo(0, 0); });
     load(true);
     const timer = setInterval(() => { if (!document.body.contains(wrap)) { clearInterval(timer); return; } load(false); }, V.config.get('pollIntervalMs'));
     return wrap;

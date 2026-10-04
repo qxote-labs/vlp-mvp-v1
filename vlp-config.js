@@ -30,9 +30,12 @@
     // ---- 채널 A (시스템 SMS) ----
     systemSmsEnabled: false,      // off로 시작, 활성 시점 미결 (BR-01, PLAT-03)
     // ---- 민감 열람 (BR-12) ----
+    chatConsentExpireHours: 24, // 열람 동의 요청 무응답 기한 [미결: 예 24시간]
+    chatExceptionReasonCodes: ['LEGAL_REQUEST', 'SAFETY'], // 동의 없이 열람(슈퍼바이저만): 법적 요청·긴급 안전 [제안]
+    chatExceptionReasonLabels: { LEGAL_REQUEST: '법적 요청(수사·소송 등)', SAFETY: '긴급 안전 확인' },
     sensitiveViewWindowMinutes: 30, // 열람 로그 합산 시간 [미결: 예 30분]
-    sensitiveViewReasonCodes: ['SUPERVISION', 'COMPLAINT', 'EXCEPTION_HANDLING'], // 감독·민원·예외 처리 [제안]
-    sensitiveViewReasonLabels: { SUPERVISION: '감독·점검', COMPLAINT: '민원 처리', EXCEPTION_HANDLING: '예외 상황 처리' },
+    sensitiveViewReasonCodes: ['SUPERVISION', 'COMPLAINT', 'EXCEPTION_HANDLING', 'OTHER'], // 감독·민원·예외 처리 + 기타(직접 입력, 메모 필수·200자) [제안]
+    sensitiveViewReasonLabels: { SUPERVISION: '감독·점검', COMPLAINT: '민원 처리', EXCEPTION_HANDLING: '예외 상황 처리', OTHER: '기타 (직접 입력)' },
     chatPageSize: 30,             // 대화 처음 보여 주는 개수. 이전 대화 보기를 누를 때마다 같은 만큼 더 [임의 초기값]
     // ---- 위치 수집 (BR-07, BR-14) ----
     locationStaleMinutes: 30,     // 자동 수집이 이 시간 이상 없으면 STALE [임의 초기값]
@@ -82,6 +85,9 @@
     adapter: 'mock',              // 'mock' | 'http'
     httpBaseUrl: '',              // http 어댑터용. 실제 URL은 JEFLIX가 정한다 [미결]
     // ---- 폴링 (실시간 방식 미결 -> 폴링 대체안 유지) ----
+    fitPanesMinHeight: 700, // 목록|상세를 '화면 높이에 맞춘 칸'으로 만드는 최소 창 높이(px). 이보다 낮으면 창 전체가 스크롤 [제안: 노트북 브라우저 창 높이 기준]
+    adminUsersAutoDetail: false, // 관리자 사용자 목록: 행을 한 번 눌러도 상세 칸을 자동으로 열지(기본 끔, 브라우저별로 사용자가 바꿈) [제안]
+    adminHomeOrder: ['escalated', 'exception', 'stale', 'dispute', 'consent', 'shops'], // 관리자 홈의 '처리 필요' 줄 순서(급한 순) [제안]
     pollIntervalMs: 3000,
     pushProvider: '',        // PWA-24: 푸시 제공자(웹푸시 등). 비어 있으면 앱 안 알림만 사용(D-33)
     vapidPublicKey: '',      // PWA-24: 웹푸시 공개키. 서버/제공자 확정 후 설정

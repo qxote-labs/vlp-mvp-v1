@@ -20,7 +20,7 @@
 <main>
   <h2>신차인도 PWA — 시연 안내 (S1 범위)</h2>
   <div class="sub">목(mock) 데이터를 한 번에 채우고, 각 화면을 바로 열어 계약 등록 → 승인 → 확인 → 출고 요청 → 출고 의뢰까지 확인합니다. 데이터는 이 브라우저에만 저장되는 시연용입니다.</div>
-  <div class="btn-row"><button class="btn btn-primary btn-auto" id="load" type="button">데모 데이터 불러오기 (초기화 후 채움)</button></div>
+  <div class="btn-row"><button class="btn btn-primary btn-auto" id="load" type="button">데모 데이터 불러오기 (초기화 후 채움)</button> <button class="btn btn-auto" id="reset-all" type="button">전체 데이터 초기화 (빈 상태)</button></div>
   <div class="hint" id="status" role="status" style="margin:8px 0 16px;"></div>
 
   <div class="step"><h3>① 고객 홍길동 — 내 계약 5건의 여러 상태</h3>
@@ -89,6 +89,7 @@
   const cl = (a) => 'customer.html?demoName=' + encodeURIComponent(a.name) + '&demoPhone=' + encodeURIComponent(a.phone);
   q('l-cust').href = cl(c.cust); q('l-new').href = cl(c.cust); q('l-cust2').href = cl(c.cust2);
   q('l-km').href = 'karmaster.html?demoKm=' + c.km.id; q('l-claim').href = 'karmaster.html?demoClaim=1';
+  q('reset-all').addEventListener('click', () => { if (confirm('이 브라우저의 시연 데이터를 모두 지울까요?')) Store.reset(); });
   q('load').addEventListener('click', async () => {
     q('status').textContent = '불러오는 중…';
     try { const r = await VLP.demo.load(); q('claim-token').textContent = r.claimToken || '(가입된 카마스터)'; q('status').textContent = '데모 데이터를 채웠습니다. 아래 링크로 각 화면을 열어 보세요.'; }

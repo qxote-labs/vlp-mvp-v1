@@ -10,20 +10,15 @@
 </head>
 <body>
 <div class="app">
-  <div class="navbar">
-    <div class="brand">&#9881; 슈퍼바이저 <span>화면</span></div>
-    <div class="spacer"></div>
-    <span style="font-size:12px;color:#3b7a16;"><span class="sync-dot"></span>실시간 동기화 중</span>
-    <button onclick="Store.reset()">전체 데이터 초기화</button>
-    <span id="header-right"></span>
-  </div>
+  <div id="vlp-rolebar" data-role="admin" class="vlp-rolebar"></div>
   <div class="frame">
     <div class="body" id="body-root"></div>
   </div>
-  <div class="footer-note">이 창은 "슈퍼바이저" 역할입니다. 그룹 카탈로그 생성, 전체 사용자 조회 등 시스템 전체 권한을 가지며, 모든 단계를 대신 처리할 수 있어 데모 시연 시 신속하게 진행할 수 있습니다.</div>
 </div>
+<script>window.ADMIN_ROLE_NOTE = '이 창은 \"슈퍼바이저\" 역할입니다. 그룹 카탈로그 생성, 전체 사용자 조회 등 시스템 전체 권한을 가지며, 모든 단계를 대신 처리할 수 있어 데모 시연 시 신속하게 진행할 수 있습니다.';</script>
 <script>window.ADMIN_MODE = 'super';</script>
 <script src="vlp-config.js"></script>
+<script src="vlp-rolebar.js"></script>
 <script src="vlp-ops.js"></script>
 <script src="status-map.js"></script>
 <script src="api-facade.js"></script>
@@ -40,6 +35,7 @@
 <script src="admin-conversations.js"></script>
 <script src="vlp-case.js"></script>
 <script src="admin-console.js"></script>
+<script src="admin-users.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

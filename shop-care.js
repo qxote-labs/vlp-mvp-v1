@@ -230,9 +230,10 @@
     o = o || {};
     const shopId = shop.id; const route = V.caseView.route;
     const root = el('<div class="vlp-app vlp-app-shop lay-top"><div class="vlp-app-strip" hidden></div><div class="vlp-app-list"></div><div class="vlp-app-detail"></div><nav class="vlp-bottomnav" aria-label="주 메뉴"></nav></div>');
+    try { root.classList.toggle('list-closed', !!(window.VLP && VLP.caseView && VLP.caseView.listClosed && VLP.caseView.listClosed())); } catch (e) { /* 무시 */ } // 접힘을 첫 그림부터 적용(나중에 적용하면 목록이 한 번 보였다 사라져 깜박임)
     const stripEl = root.querySelector('.vlp-app-strip'), listEl = root.querySelector('.vlp-app-list'), detailEl = root.querySelector('.vlp-app-detail'), nav = root.querySelector('.vlp-bottomnav');
     const ho = V.shopFlow ? V.shopFlow.source(shopId) : null;
-    let care = [], queue = '', cur = null, lastSig = null, loaded = false, busy = false;
+    let care = [], queue = '', cur = null, lastSig = null, loaded = false, busy = false, dropHidden = false;
     const tabKey = 'vlp_shop_tab';
     const getTab = () => { try { return sessionStorage.getItem(tabKey) || 'today'; } catch (e) { return 'today'; } };
     const putTab = (t) => { try { sessionStorage.setItem(tabKey, t); } catch (e) { /* 무시 */ } };
@@ -287,7 +288,7 @@
       stripEl.appendChild(head('고객 건'));
       const qs = cfg('careShopQueues') || [];
       const chips = el('<div class="vlp-chip-row sc-queues" role="group" aria-label="할 일 큐"></div>');
-      const mk = (id, label, c) => { const b = el('<button type="button" class="vlp-chip"></button>'); b.dataset.queue = id; b.dataset.filter = id || 'all'; b.appendChild(document.createElement('span')).textContent = label; b.appendChild(document.createTextNode(' ')); b.appendChild(document.createElement('b')).textContent = String(c); if (!c && id) b.classList.add('zero'); b.setAttribute('aria-pressed', queue === id ? 'true' : 'false'); b.addEventListener('click', () => { queue = queue === id ? '' : id; paint(); }); chips.appendChild(b); };
+      const mk = (id, label, c) => { const b = el('<button type="button" class="vlp-chip"></button>'); b.dataset.queue = id; b.dataset.filter = id || 'all'; b.appendChild(document.createElement('span')).textContent = label; b.appendChild(document.createTextNode(' ')); b.appendChild(document.createElement('b')).textContent = String(c); if (!c && id) b.classList.add('zero'); b.setAttribute('aria-pressed', queue === id ? 'true' : 'false'); b.addEventListener('click', () => { queue = queue === id ? '' : id; dropHidden = true; paint(); }); chips.appendChild(b); };
       mk('', '전체', items.length); qs.forEach((q) => mk(q.id, q.label, items.filter((x) => x.q === q.id).length));
       stripEl.appendChild(chips);
       const shown = queue ? items.filter((x) => x.q === queue) : items;
@@ -334,6 +335,7 @@
       const items = unified(); let id = route.get(); let x = id && items.find((i) => i.id === id);
       if (x && wide() && getTab() !== 'clients') putTab('clients');
       const tab = getTab(); listEl.innerHTML = ''; stripEl.hidden = true; stripEl.innerHTML = '';
+      if (dropHidden) { dropHidden = false; if (x && tab === 'clients' && queue && x.q !== queue) { x = null; id = null; try { g.history.replaceState(null, '', g.location.pathname + g.location.search); } catch (e) { /* 무시 */ }; /* 대화 패널은 건이 없어도 그대로 둔다(넓은 화면) */ } } // 큐를 바꿔 목록에서 빠진 건은 상세에서도 내린다
       if (!x && wide() && tab === 'clients') { const pool = queue ? items.filter((i) => i.q === queue) : items; x = pool[0] || null; id = x ? x.id : null; }
       if (tab === 'today') todayPane(items); else if (tab === 'clients') clientsPane(items, id); else if (tab === 'msgs') msgsPane(items); else mePane();
       root.classList.toggle('has-case', !!x); root.dataset.tab = tab; paintNav(!!x); detailEl.innerHTML = '';

@@ -43,6 +43,10 @@
       if (body.receiptMode === 'REMOTE_PROXY') body.proxyConsent = true;
       await V.api.contracts.releaseRequest(c.contractId, body); m[c.contractId] = { confirmed: true, released: true };
       if (spec.upto === 'RELEASE_REQUESTED') return rec;
+      if (spec.chat) { // 대화가 오간 건(관리자 대화 열람·동의 요청 확인용): 고객 문의 → 카마스터 답변
+        asCust(cu); await V.api.engagement.send(c.contractId, { body: '출고 일정이 어떻게 되나요? 도착 예정일 알려주세요.' }, { idempotencyKey: V.api.newIdempotencyKey() });
+        asKmOf(km); await V.api.engagement.send(c.contractId, { body: '네, 확인해서 안내드리겠습니다. 출고 의뢰가 접수되어 진행 중입니다.' }, { idempotencyKey: V.api.newIdempotencyKey() });
+      }
       asKmOf(km); const d = await V.api.contracts.releaseOrder(c.contractId, {}); const id = d.deliveryId; rec.deliveryId = id;
       if (spec.upto === 'PLANNED') return rec;
       a.advance(id, 'SHIPPED');
@@ -70,15 +74,15 @@
     }
     const F = [
       // 김민준 — 인도 완료 2건(평가 전 / 평가 완료)
-      { who: 'kim', km: 'k1', no: 'HM-FLOW-101', model: '투싼', upto: 'DELIVERED', note: '인도 완료 · 평가 전' },
+      { who: 'kim', km: 'k1', no: 'HM-FLOW-101', chat: true, model: '투싼', upto: 'DELIVERED', note: '인도 완료 · 평가 전' },
       { who: 'kim', km: 'k1', no: 'KA-FLOW-102', model: '스포티지', brand: '기아', upto: 'DELIVERED', rate: ['KARMASTER', 'SHOP', 'DELIVERY_COMPANY'], note: '인도 완료 · 평가 완료' },
       // 한도윤 — 탁송 중(지연·시공 게시 없음): 카마스터 위치 입력·안내 검증용
-      { who: 'han', km: 'k1', no: 'HM-FLOW-103', model: '아반떼', upto: 'IN_TRANSIT', dest: 'DEALERSHIP', note: '탁송 중 · 위치 입력 확인용' },
+      { who: 'han', km: 'k1', no: 'HM-FLOW-103', chat: true, model: '아반떼', upto: 'IN_TRANSIT', dest: 'DEALERSHIP', note: '탁송 중 · 위치 입력 확인용' },
       // 이서연 — 이동 중(위치 수집 3곳 + 카마스터 안내 + 시공 중 게시 + 해소된 지연)
       { who: 'lee', km: 'k2', no: 'KA-FLOW-201', model: '니로 EV', brand: '기아', dest: 'CUSTOM_ADDRESS', upto: 'IN_TRANSIT', resolvedDelay: 'traffic', post: [['LOCATION', '대전 휴게소 경유 중'], ['CUSTOMIZING', '선팅 시공 중']], note: '이동 중 · 자택 배송' },
       // 박지훈 — 도착: 현장 인수 대기(모두 합격) / 검수 불합격 + 카마스터 확인 완료
-      { who: 'park', km: 'k1', no: 'HM-FLOW-301', model: '싼타페', upto: 'ARRIVED', note: '도착 · 인수 확인 대기(카마스터 확인 전)' },
-      { who: 'park', km: 'k1', no: 'HM-FLOW-302', model: '스타리아', upto: 'ARRIVED', fail: true, kmConfirm: true, note: '도착 · 검수 불합격 1건(사유 입력 필요)' },
+      { who: 'park', km: 'k1', no: 'HM-FLOW-301', chat: true, model: '싼타페', upto: 'ARRIVED', note: '도착 · 인수 확인 대기(카마스터 확인 전)' },
+      { who: 'park', km: 'k1', no: 'HM-FLOW-302', chat: true, model: '스타리아', upto: 'ARRIVED', fail: true, kmConfirm: true, note: '도착 · 검수 불합격 1건(사유 입력 필요)' },
       // 최수민 — 지연 중 / 출고 의뢰 완료(배차 전)
       { who: 'choi', km: 'k3', no: 'KA-FLOW-401', model: '셀토스', brand: '기아', dest: 'DEALERSHIP', upto: 'SHIPPED', delay: 'traffic', note: '배송 시작 · 지연 발생 중' },
       { who: 'choi', km: 'k3', no: 'HM-FLOW-402', model: '캐스퍼', upto: 'PLANNED', note: '출고 의뢰 완료 · 배차 전' },
@@ -86,7 +90,7 @@
       { who: 'jung', km: 'k2', no: 'HM-FLOW-501', model: '쏘나타', mode: 'REMOTE_PROXY', upto: 'ARRIVED', note: '도착 · 대리 인수(시공사 필수 촬영 전)' },
       { who: 'jung', km: 'k2', no: 'HM-FLOW-502', model: '코나', mode: 'REMOTE_PROXY', upto: 'ARRIVED', shots: true, proxy: true, kmConfirm: true, note: '도착 · 대리 인수 기록 완료(고객 원격 승인 대기)' },
       // 한도윤 — 출고 의뢰 완료 / 승인 후 고객 확인 전
-      { who: 'han', km: 'k1', no: 'HM-FLOW-601', model: '팰리세이드', upto: 'PLANNED', note: '출고 의뢰 완료 · 배차 전' },
+      { who: 'han', km: 'k1', no: 'HM-FLOW-601', chat: true, model: '팰리세이드', upto: 'PLANNED', note: '출고 의뢰 완료 · 배차 전' },
       { who: 'han', km: 'k1', no: 'KA-FLOW-602', model: '레이', brand: '기아', upto: 'APPROVED', note: '승인됨 · 고객 계약 확인 전' },
       // 오지안 — 배송 시작(대리 인수 예정) / 승인 대기 / 거절됨
       { who: 'oh', km: 'k3', no: 'KA-FLOW-701', model: 'EV6', brand: '기아', mode: 'REMOTE_PROXY', upto: 'SHIPPED', note: '배송 시작 · 대리 인수 예정' },

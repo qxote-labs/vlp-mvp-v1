@@ -160,12 +160,13 @@
   const viewedRecently = (c) => { const win = (cfg('sensitiveViewWindowMinutes') || 30) * 60000; return (c.chatViews || []).some((v) => Date.now() - v.at <= win); };
   care.admin = {
     async messages(id, q) { guard(); const c = store().getCareOrder(id); if (!c) throw err(404, '신청 내역을 찾을 수 없습니다'); return wait(pageOfMsgs(c, q, !viewedRecently(c))); },
-    async recordView(id, reasonCode) { guard(); if (!(cfg('sensitiveViewReasonCodes') || []).includes(reasonCode)) throw err(422, '열람 사유를 선택해 주세요'); const c = store().recordCareChatView(id, (g.loggedInAdminName || '관리자'), reasonCode); if (!c) throw err(404, '신청 내역을 찾을 수 없습니다'); return wait({ ok: true }); },
+    async recordView(id, reasonCode, note) { guard(); if (!(cfg('sensitiveViewReasonCodes') || []).concat(cfg('chatExceptionReasonCodes') || []).includes(reasonCode)) throw err(422, '열람 사유를 선택해 주세요'); if (note && note.length > 200) throw err(422, '상세 사유는 200자 이하로 입력해 주세요'); if (reasonCode === 'OTHER' && !(note || '').trim()) throw err(422, '기타 사유는 내용을 입력해 주세요'); if (store().chatViewGrant && !store().chatViewGrant(id)) throw err(403, '당사자 동의가 필요합니다'); const c = store().recordCareChatView(id, (g.loggedInAdminName || '관리자'), reasonCode, note); if (!c) throw err(404, '신청 내역을 찾을 수 없습니다'); return wait({ ok: true }); },
   };
   shopApi.chatFor = (shopId) => chatApi('shop', (id) => mineShop(shopId, id));
   // 실행 시점에 facade 인스턴스에 붙는다(createFacade가 새로 만들어져도 다시 붙일 수 있게 함수로 노출)
   V.attachCare = function (api) { api.care = care; return api; };
   if (V.api) V.attachCare(V.api);
+  care.phaseOf = phaseOf;
   V.careApi = care;
   if (typeof module !== 'undefined' && module.exports) module.exports = care;
 })(typeof window !== 'undefined' ? window : globalThis);

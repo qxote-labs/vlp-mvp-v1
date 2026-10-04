@@ -171,7 +171,7 @@
     const box = document.createElement('div'); box.className = 'vlp-notes';
     box.innerHTML = '<button type="button" class="vlp-notes-head" aria-expanded="false"><span>🔔 알림</span><span class="badge info vlp-notes-badge" hidden>0</span><span class="vlp-caret" aria-hidden="true">▾</span></button><div class="vlp-notes-body" hidden></div>';
     const head = box.querySelector('.vlp-notes-head'), badge = box.querySelector('.vlp-notes-badge'), body = box.querySelector('.vlp-notes-body');
-    let lastUnread = null, lastSig = null, open = false;
+    let lastUnread = null, lastSig = null, open = false; const halfToasted = {};
     if (opts.sheet && V.delivery && V.delivery.openSheet) {
       // 홈 머리의 🔔: 목록은 시트로 연다(구성안 4.2). 닫으면 본문을 제자리로 돌려 두어 폴링이 계속 갱신한다.
       box.classList.add('vlp-notes-bell'); head.querySelector('.vlp-caret').remove();
@@ -180,13 +180,17 @@
     async function load() {
       let page;
       try { page = await V.api.notifications.list({ limit: 20 }); } catch (e) { if (e.status === 401 && opts.onAuthLost) opts.onAuthLost(); return; }
-      const sig = JSON.stringify(page);
+      const extra = (opts.extra ? opts.extra() : []) || [];
+      extra.forEach((x) => { if (x.half && !halfToasted[x.id]) { halfToasted[x.id] = 1; toast('열람 동의 요청의 응답 기한이 곧 끝나요'); } });
+      const sig = JSON.stringify([page, extra.map((x) => [x.id, x.text])]);
       if (sig === lastSig) return; lastSig = sig;
-      badge.textContent = String(page.unreadCount); badge.hidden = page.unreadCount === 0;
-      if (lastUnread !== null && page.unreadCount > lastUnread) toast('새 알림이 있어요');
-      lastUnread = page.unreadCount;
+      const unread = page.unreadCount + extra.length;
+      badge.textContent = String(unread); badge.hidden = unread === 0;
+      if (lastUnread !== null && unread > lastUnread) toast('새 알림이 있어요');
+      lastUnread = unread;
       body.innerHTML = '';
-      if (!page.items.length) { body.innerHTML = '<div class="hint">알림이 없습니다.</div>'; if (V.pushLink) body.appendChild(V.pushLink.settingsRow()); return; }
+      extra.forEach((x) => { const row = document.createElement('div'); row.className = 'vlp-note consent'; row.dataset.id = x.id; row.innerHTML = '<div class="vlp-note-text"></div><div class="hint vlp-note-time"></div>'; row.querySelector('.vlp-note-text').textContent = x.text; row.querySelector('.vlp-note-time').textContent = fmtDateTime(x.createdAt); const o = document.createElement('button'); o.type = 'button'; o.className = 'btn btn-sm vlp-note-open'; o.textContent = '열기'; o.addEventListener('click', () => x.open && x.open()); row.appendChild(o); body.appendChild(row); });
+      if (!page.items.length && !extra.length) { body.innerHTML = '<div class="hint">알림이 없습니다.</div>'; if (V.pushLink) body.appendChild(V.pushLink.settingsRow()); return; }
       page.items.forEach((n) => {
         const row = document.createElement('div'); row.className = 'vlp-note' + (n.read ? ' read' : ''); row.dataset.id = n.notificationId;
         row.innerHTML = '<div class="vlp-note-text"></div><div class="hint vlp-note-time"></div>';

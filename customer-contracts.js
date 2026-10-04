@@ -383,7 +383,7 @@
         // 구성안 4.2: 인사 + 🔔 / 지금 확인할 일(카드 하나) / 진행 중 / 바로가기
         const hd = el('<div class="vlp-pane-head vlp-home-head"><h2></h2></div>');
         hd.querySelector('h2').textContent = ctx.name ? ctx.name + '님, 안녕하세요' : '안녕하세요';
-        hd.appendChild(U.notificationsPanel({ role: 'customer', sheet: true }));
+        hd.appendChild(U.notificationsPanel({ role: 'customer', sheet: true, extra: () => V.chat.consentNotes(items.map((c) => ({ id: c.contractId, label: c.vehicleModel })), 'customer', (id) => { const x = document.querySelector('.vlp-sheet-close'); if (x) x.click(); route.set(id); }) }));
         listPane.appendChild(hd);
         const live = items.filter((c) => { const x = describe(c); return !(x.d && x.d.storageState === 'DELIVERED') && c.status !== 'REJECTED' && c.status !== 'EXPIRED'; });
         const withTodo = live.map((c) => ({ c, x: describe(c) })).filter(({ x }) => x.todo);

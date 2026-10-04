@@ -9,7 +9,7 @@ const ADMIN_MODE = window.ADMIN_MODE || 'community';
 
 let careSelectedId = sessionStorage.getItem('v6_admin_care_sel') || null;
 let loggedInAdminId = sessionStorage.getItem('v6_admin_id') || null;
-let adminTab = sessionStorage.getItem('v6_admin_tab') || 'delivery';
+let adminTab = sessionStorage.getItem('v6_admin_tab') || 'home';
 
 let showNewCareForm = false;
 // 신차케어 목록 필터: all | dispute(이의 중재). 이의 중재 메뉴가 쓴다.
@@ -24,7 +24,7 @@ let _rendering = false;
 function render() { if (_rendering) return; _rendering = true; try { _renderInner(); } finally { _rendering = false; } }
 
 function selectCareOrder(id) { careSelectedId = id; showNewCareForm = false; sessionStorage.setItem('v6_admin_care_sel', id); render(); }
-function setAdminTab(tab) { adminTab = tab; sessionStorage.setItem('v6_admin_tab', tab); render(); }
+function setAdminTab(tab) { if (/case=/.test(window.location.hash || '')) { try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* 무시 */ } } adminTab = tab; sessionStorage.setItem('v6_admin_tab', tab); render(); }
 
 function loginPhoneFormat(raw) {
   const digits = (raw || '').replace(/[^0-9]/g, '').slice(0, 11);
@@ -60,14 +60,129 @@ function renderLogin() {
   });
   return wrap;
 }
-function tryLogin(id) { loggedInAdminId = id; sessionStorage.setItem('v6_admin_id', id); render(); }
+
+// 대화 열람 동의: 관리자가 보낸 요청의 진행 상황(대기 건수 칩) + 상태가 바뀌면 알림(토스트). 목 단계는 Store를 직접 본다.
+const _consentSeen = {};
+function consentChipPaint() {
+  const chip = document.getElementById('adm-consent-chip'); if (!chip || typeof Store === 'undefined' || !Store.getChatConsents) return;
+  const all = (Store.load().chatConsents || []).filter(c => !c.exception);
+  const pend = all.filter(c => Store._consentState(c) === 'pending').length;
+  chip.hidden = !pend; chip.textContent = '열람 동의 대기 ' + pend + '건';
+}
+function consentWatch() {
+  if (typeof Store === 'undefined' || !Store.load || !loggedInAdminId) return;
+  const label = (id) => { const o = Store.getCareOrder && Store.getCareOrder(id); return o ? (o.carModel || '차량') + ' ' + o.id : id; };
+  (Store.load().chatConsents || []).filter(c => !c.exception).forEach(c => {
+    const st = Store._consentState(c), prev = _consentSeen[c.id]; _consentSeen[c.id] = st;
+    if (!prev || prev === st) return;
+    const msg = st === 'granted' ? '두 분 모두 열람에 동의했어요' : st === 'denied' ? '열람 동의가 거부됐어요' : st === 'expired' ? '열람 동의 요청의 기한이 지났어요' : null;
+    if (msg && window.VLP && VLP.ui && VLP.ui.toast) VLP.ui.toast(msg + ' · ' + label(c.chatId));
+  });
+  consentChipPaint();
+}
+setInterval(consentWatch, 2000);
+// ===================== 홈 (관리자 시작 화면: 지금 처리할 것) =====================
+const HOME_CTX = 'v6_admin_home_ctx';
+function homeCtx() { try { return JSON.parse(sessionStorage.getItem(HOME_CTX) || 'null'); } catch (e) { return null; } }
+function setHomeCtx(v) { try { if (v) sessionStorage.setItem(HOME_CTX, JSON.stringify(v)); else sessionStorage.removeItem(HOME_CTX); } catch (e) { /* 무시 */ } }
+let _delSummary = { at: 0, ok: false, exceptions: [], stale: [] }, _delBusy = false;
+let _delP = null;
+function refreshDelSummary() {
+  if (_delP) return _delP;
+  if (!(window.VLP && VLP.adminConsole && VLP.adminConsole.summary)) return Promise.resolve();
+  _delP = (async () => {
+    try { const s = await VLP.adminConsole.summary(); _delSummary = { at: Date.now(), ok: true, exceptions: s.exceptions, stale: s.stale }; } catch (e) { /* 다음에 다시 */ } finally { _delP = null; }
+  })();
+  return _delP;
+}
+// 홈의 '처리 필요' 줄: 급한 순서는 설정(adminHomeOrder). 담당 범위(커뮤니티관리자)는 careList·업체 목록이 이미 걸러져 있다.
+function homeRows(admin, careList) {
+  const label = (c) => [c.carModel || '차량', c.customer && c.customer.name].filter(Boolean).join(' · ');
+  const care = (f) => careList.filter(f).map(c => ({ kind: 'care', id: c.id, label: label(c) }));
+  const shops = Store.getShops().filter(s => s.verificationStatus === 'pending' && shopInAdminScope(s, admin)).map(s => ({ kind: 'shop', id: s.id, label: s.name }));
+  const consent = (Store.load().chatConsents || []).filter(c => !c.exception && Store._consentState(c) === 'pending').map(c => { const o = Store.getCareOrder && Store.getCareOrder(c.chatId); return { kind: o ? 'care' : 'delivery', id: c.chatId, label: o ? label(o) : c.chatId }; });
+  const R = {
+    escalated: { title: '운영자 중재 필요 (신차 케어)', urgent: true, items: care(c => careDisputed(c) && c.escalated), zero: '중재가 필요한 건이 없어요' },
+    exception: { title: '지연·예외 (신차 인도)', urgent: true, items: _delSummary.exceptions.map(r => ({ kind: 'delivery', id: r.id, label: r.label })), zero: '지연·예외 건이 없어요', loading: !_delSummary.ok },
+    stale: { title: '수집 지연', urgent: true, items: _delSummary.stale.map(r => ({ kind: 'delivery', id: r.id, label: r.label })), zero: '지연된 건이 없어요', loading: !_delSummary.ok },
+    dispute: { title: '품질 이의 · 시공사 보완 대기', urgent: true, items: care(c => careDisputed(c) && !c.escalated), zero: '보완 대기 건이 없어요' },
+    consent: { title: '대화 열람 동의 대기', items: consent, zero: '응답을 기다리는 요청이 없어요' },
+    shops: { title: '업체 승인 대기', items: shops, zero: '승인 대기 업체가 없어요' },
+  };
+  const order = (window.VLP && VLP.config && VLP.config.get('adminHomeOrder')) || Object.keys(R);
+  return order.filter(k => R[k]).map(k => Object.assign({ key: k }, R[k]));
+}
+const homeTotal = (rows) => rows.reduce((n, r) => n + r.items.length, 0);
+function openHomeItem(row, item) {
+  setHomeCtx({ key: row.key, kind: item.kind, id: item.id, ids: row.items.map(i => i.id), title: row.title });
+  if (item.kind === 'care') {
+    setCareFilter(row.key === 'escalated' ? 'escalated' : row.key === 'dispute' ? 'dispute' : 'all');
+    adminTab = 'care'; sessionStorage.setItem('v6_admin_tab', 'care'); selectCareOrder(item.id);
+  } else if (item.kind === 'delivery') {
+    try { sessionStorage.setItem('vlp_adm_filter', row.key === 'stale' ? 'stale' : row.key === 'exception' ? 'exception' : 'all'); } catch (e) { /* 무시 */ }
+    adminTab = 'delivery'; sessionStorage.setItem('v6_admin_tab', 'delivery'); render(); VLP.caseView.route.set(item.id);
+  } else { setHomeCtx(null); setAdminTab('shops'); }
+}
+function renderHomeTab(admin, careList) {
+  const w = el(`<div class="vlp-adm-home"><div class="vlp-home-sum"><b></b><span class="hint">급한 순서대로 · 눌러서 바로 처리</span></div><div class="vlp-home-rows"></div><div class="vlp-cd vlp-home-recent"><h4>최근 관리자 처리</h4><div class="vlp-an-list"></div></div></div>`);
+  const sum = w.querySelector('.vlp-home-sum b'), box = w.querySelector('.vlp-home-rows'), rec = w.querySelector('.vlp-home-recent .vlp-an-list');
+  const stamp = (t) => { const d = new Date(t), p = (n) => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+  function paint() {
+    if (!document.body.contains(w) && w._painted) return; w._painted = true;
+    const rows = homeRows(admin, careList); sum.textContent = '오늘 처리할 건 ' + homeTotal(rows); box.innerHTML = '';
+    rows.forEach((r) => {
+      const n = r.items.length, b = el('<button type="button" class="vlp-home-row"><span class="hn"></span><span class="ht"><b></b><small></small></span><span class="go" aria-hidden="true">›</span></button>');
+      b.dataset.home = r.key; b.querySelector('.hn').textContent = r.loading && !n ? '…' : String(n); b.querySelector('b').textContent = r.title;
+      b.querySelector('small').textContent = n ? r.items[0].label + (n > 1 ? ' 외 ' + (n - 1) + '건' : '') : (r.loading ? '불러오는 중…' : r.zero);
+      if (!n) { b.disabled = true; b.classList.add('z'); b.querySelector('.go').hidden = true; } else if (r.urgent) b.classList.add('u');
+      b.addEventListener('click', () => openHomeItem(r, r.items[0])); box.appendChild(b);
+    });
+    paintHomeDot(rows);
+    rec.innerHTML = ''; const acts = Store.getRecentAdminActions ? Store.getRecentAdminActions(5) : [];
+    if (!acts.length) rec.appendChild(el('<div class="hint vlp-an-empty">아직 관리자 처리 기록이 없어요.</div>'));
+    acts.forEach((a) => { const e = el('<div class="vlp-an-row"><div class="vlp-an-meta hint"></div><div class="vlp-an-text"></div></div>'); e.querySelector('.vlp-an-meta').textContent = stamp(a.at) + ' · ' + a.by; e.querySelector('.vlp-an-text').textContent = a.text + ' (' + a.caseId + ')'; rec.appendChild(e); });
+  }
+  paint(); refreshDelSummary().then(() => { if (document.body.contains(w)) paint(); });
+  return w;
+}
+function paintHomeDot(rows) {
+  const dot = document.querySelector('.vlp-adm-nav-btn[data-menu=home] .vlp-adm-dot'); if (!dot) return;
+  const n = homeTotal(rows); dot.hidden = !n; dot.textContent = n ? '●' + n : '';
+}
+// 홈에서 연 건의 상세 맨 위 "← 홈으로" 막대 / 처리 후 안내 (홈을 거치지 않고 연 건에는 나오지 않는다)
+window.VLP = window.VLP || {};
+VLP.adminHome = {
+  crumb(root, id) {
+    const ctx = homeCtx(); if (!ctx || ctx.id !== id || !root) return;
+    const k = ctx.ids.indexOf(id) + 1, bar = el('<div class="vlp-home-crumb" role="note"><span></span><button type="button" class="btn btn-sm">← 홈으로</button></div>');
+    bar.querySelector('span').textContent = '🏠 홈에서 열었어요 · ' + ctx.title + ' ' + ctx.ids.length + '건 중 ' + (k || 1) + '번째';
+    bar.querySelector('button').addEventListener('click', () => { setHomeCtx(null); setAdminTab('home'); });
+    root.insertBefore(bar, root.firstChild);
+  },
+};
+function homeDoneBanner(admin, careList) {
+  const ctx = homeCtx(); if (!ctx || ctx.kind !== 'care') return null;
+  if (careSelectedId && careSelectedId !== ctx.id) { setHomeCtx(null); return null; }
+  const rows = homeRows(admin, careList), row = rows.find(r => r.key === ctx.key);
+  if (!row || row.items.some(i => i.id === ctx.id)) return null; // 아직 처리 필요
+  const left = homeTotal(rows), next = rows.find(r => r.items.length && r.urgent) || rows.find(r => r.items.length);
+  const b = el('<div class="vlp-home-done" role="status"><span></span><span class="vlp-home-acts"></span></div>');
+  b.querySelector('span').textContent = '✓ 처리했어요. 처리 필요가 ' + left + '건 남았어요.';
+  const acts = b.querySelector('.vlp-home-acts');
+  if (next) { const nb = el('<button type="button" class="btn btn-sm btn-primary">다음 급한 건 보기</button>'); nb.addEventListener('click', () => openHomeItem(next, next.items[0])); acts.appendChild(nb); }
+  const hb = el('<button type="button" class="btn btn-sm">홈으로</button>'); hb.addEventListener('click', () => { setHomeCtx(null); setAdminTab('home'); }); acts.appendChild(hb);
+  return b;
+}
+setInterval(() => { if (loggedInAdminId && Date.now() - _delSummary.at > 15000) refreshDelSummary().then(() => { try { const ad = Store.getAdmin(loggedInAdminId); if (ad) paintHomeDot(homeRows(ad, Store.getCareOrders().filter(c => careOrderInAdminScope(c, ad)))); } catch (e) { /* 무시 */ } }); }, 5000);
+
+function tryLogin(id, tab) { loggedInAdminId = id; sessionStorage.setItem('v6_admin_id', id); adminTab = tab || 'home'; sessionStorage.setItem('v6_admin_tab', adminTab); setHomeCtx(null); render(); }
 function logout() { loggedInAdminId = null; sessionStorage.removeItem('v6_admin_id'); render(); }
 
 function _renderInner() {
   const root = document.getElementById('body-root');
   root.innerHTML = '';
   if (!loggedInAdminId) {
-    document.getElementById('header-right').textContent = '';
+    if (VLP.rolebar) VLP.rolebar.set({ role: 'admin', roleLabel: ADMIN_MODE === 'super' ? '슈퍼바이저' : '커뮤니티관리자', name: '', sync: true, note: window.ADMIN_ROLE_NOTE || '' });
     root.appendChild(renderLogin());
     return;
   }
@@ -77,32 +192,58 @@ function _renderInner() {
   const careList = Store.getCareOrders().filter(c => careOrderInAdminScope(c, admin));
   const pendingShopCount = Store.getShops().filter(s => s.verificationStatus === 'pending' && shopInAdminScope(s, admin)).length;
   const scopeLabel = isSuper ? '슈퍼바이저 · 전체 권한' : `커뮤니티관리자 · 담당 그룹: ${(admin.assignedGroupIds || []).map(gid => { const g = Store.getGroup(gid); return g ? g.name : gid; }).join(', ') || '없음'}`;
-  document.getElementById('header-right').textContent = `${admin.name} (${scopeLabel}) · 신차 케어 ${careList.length}건`;
+  if (VLP.rolebar) VLP.rolebar.set({ role: 'admin', roleLabel: isSuper ? '슈퍼바이저' : '커뮤니티관리자', name: `${admin.name} (${scopeLabel.replace(/^[^·]*· /, '')})`, sync: true, note: window.ADMIN_ROLE_NOTE || '' });
 
-  const effectiveTab = (!isSuper && adminTab === 'users') ? 'delivery' : adminTab;
-  const tabRenderers = { care: () => renderCareTab(careList), users: renderUsersTab, shops: () => renderShopApprovalTab(admin) };
+  let effectiveTab = adminTab;
+  if (effectiveTab === 'home' && /case=/.test(window.location.hash || '')) effectiveTab = 'delivery'; // 건 주소(#case=…)로 열면 건 목록으로
+  const tabRenderers = { home: () => renderHomeTab(admin, careList), care: () => renderCareTab(careList), users: () => VLP.adminUsers.render(admin, isSuper ? renderGroupCatalogSection() : null), shops: () => renderShopApprovalTab(admin) };
   {
     // 운영 관제 콘솔(구성안 5.4): 왼쪽 메뉴 + 건 목록 + 상세 + 우측 대화 감독
     const filt = (() => { try { return sessionStorage.getItem('vlp_adm_filter') || 'all'; } catch (e) { return 'all'; } })();
     const shell = el(`<div class="vlp-adm"><nav class="vlp-adm-nav" aria-label="관리 메뉴"></nav><div class="vlp-adm-main"></div></div>`);
     const nav = shell.querySelector('.vlp-adm-nav');
-    const addNav = (id, label, on, run, extra) => { const b = el('<button type="button" class="vlp-adm-nav-btn"></button>'); b.dataset.menu = id; b.textContent = label; if (on) b.setAttribute('aria-current', 'page'); b.addEventListener('click', run); if (extra) b.appendChild(extra); nav.appendChild(b); return b; };
+    const NAV_ICO = { home: '🏠', cases: '📋', exceptions: '⚠️', care: '🔧', dispute: '⚖️', users: '👥', shops: '🏢', logout: '↩︎' };
+    const addNav = (id, label, on, run, extra) => { const b = el('<button type="button" class="vlp-adm-nav-btn"><span class="vlp-adm-ico" aria-hidden="true"></span><span class="vlp-adm-lbl"></span></button>'); b.dataset.menu = id; b.querySelector('.vlp-adm-ico').textContent = NAV_ICO[id] || ''; b.querySelector('.vlp-adm-lbl').textContent = label; b.setAttribute('aria-label', label.replace(/\s*\(\d+\)$/, '')); b.title = label; if (on) b.setAttribute('aria-current', 'page'); b.addEventListener('click', run); if (extra) b.appendChild(extra); nav.appendChild(b); return b; };
     const setFilter = (f) => { try { sessionStorage.setItem('vlp_adm_filter', f); } catch (e) { /* 무시 */ } };
+    addNav('home', '홈', effectiveTab === 'home', () => { setHomeCtx(null); setAdminTab('home'); }, el('<span class="vlp-adm-dot" hidden></span>'));
     addNav('cases', '건 목록', effectiveTab === 'delivery' && filt !== 'exception', () => { setFilter('all'); setAdminTab('delivery'); });
     const exq = addNav('exceptions', '예외 큐', effectiveTab === 'delivery' && filt === 'exception', () => { setFilter('exception'); setAdminTab('delivery'); }, el('<span class="vlp-adm-dot" hidden></span>'));
-    window.addEventListener('vlp-adm-counts', (e) => { const dot = exq.querySelector('.vlp-adm-dot'); if (!dot || !document.body.contains(exq)) return; const n = e.detail.exception; dot.hidden = !n; dot.textContent = n ? '●' + n : ''; });
+    const paintExDot = (n) => { const dot = exq.querySelector('.vlp-adm-dot'); if (!dot) return; if (dot.hidden !== !n) dot.hidden = !n; const t = n ? '●' + n : ''; if (dot.textContent !== t) dot.textContent = t; };
+    window.addEventListener('vlp-adm-counts', (e) => { if (!document.body.contains(exq)) return; paintExDot(e.detail.exception); });
+    if (_delSummary.ok) paintExDot(_delSummary.exceptions.length); // 메뉴를 바꿔 메뉴줄을 다시 만들어도 직전에 알던 개수를 바로 보인다(다른 메뉴의 숫자와 같게)
+    if (!_delSummary.ok || Date.now() - _delSummary.at > 5000) refreshDelSummary().then(() => { if (document.body.contains(exq)) paintExDot(_delSummary.exceptions.length); });
     const disputeN = careList.filter(careDisputed).length;
     addNav('care', '신차 케어 서비스', effectiveTab === 'care' && careFilter() !== 'dispute', () => { setCareFilter('all'); setAdminTab('care'); });
     addNav('dispute', '이의 중재', effectiveTab === 'care' && careFilter() === 'dispute', () => { setCareFilter('dispute'); setAdminTab('care'); }, el(`<span class="vlp-adm-dot"${disputeN ? '' : ' hidden'}>${disputeN ? '●' + disputeN : ''}</span>`));
-    if (isSuper) addNav('users', '통합 사용자', effectiveTab === 'users', () => setAdminTab('users'));
+    addNav('users', isSuper ? '사용자/그룹' : '사용자', effectiveTab === 'users', () => setAdminTab('users'));
     addNav('shops', `업체 승인${pendingShopCount ? ` (${pendingShopCount})` : ''}`, effectiveTab === 'shops', () => setAdminTab('shops'));
+    { const chip = el('<span class="vlp-adm-chip" id="adm-consent-chip" hidden></span>'); nav.appendChild(chip); consentChipPaint(); }
     addNav('logout', '로그아웃', false, () => logout());
+    // 폰(<768px): [홈] + [현재 메뉴 ▾] 드롭다운. 나머지 메뉴는 목록으로(아이콘+글자+건수 점), CSS가 폰에서만 보인다.
+    {
+      const more = el('<button type="button" class="vlp-adm-more" aria-haspopup="menu" aria-expanded="false"><span class="vlp-adm-ico" aria-hidden="true">☰</span><span class="vlp-adm-lbl"></span><span class="vlp-adm-dot" hidden></span><i aria-hidden="true">▾</i></button>');
+      const panel = el('<div class="vlp-adm-panel" role="menu" aria-label="관리 메뉴 목록" hidden></div>');
+      const btns = () => [...nav.querySelectorAll('.vlp-adm-nav-btn')], cur = () => btns().find(b => b.getAttribute('aria-current') === 'page');
+      const dotN = (b) => { const d = b.querySelector('.vlp-adm-dot'); return d && !d.hidden ? (parseInt((d.textContent || '').replace(/\D/g, ''), 10) || 1) : 0; };
+      const setT = (e, v) => { if (e.textContent !== v) e.textContent = v; };
+      const paintMore = () => { const c = cur(), isHome = !c || c.dataset.menu === 'home'; setT(more.querySelector('.vlp-adm-ico'), isHome ? '☰' : (c.querySelector('.vlp-adm-ico') || {}).textContent || '☰'); setT(more.querySelector('.vlp-adm-lbl'), isHome ? '메뉴' : (c.getAttribute('aria-label') || c.title));
+        const n = btns().filter(b => b.dataset.menu !== 'home' && b !== c).reduce((a, b) => a + dotN(b), 0), d = more.querySelector('.vlp-adm-dot'); if (d.hidden !== !n) d.hidden = !n; setT(d, n ? '●' + n : ''); };
+      const close = () => { panel.hidden = true; more.setAttribute('aria-expanded', 'false'); };
+      const openP = () => { panel.innerHTML = ''; btns().filter(b => b.dataset.menu !== 'home').forEach((b) => { const mi = el('<button type="button" role="menuitem" class="vlp-adm-mi"><span class="vlp-adm-ico" aria-hidden="true"></span><span class="mt"></span><span class="vlp-adm-dot" hidden></span></button>'); mi.dataset.menu = b.dataset.menu; mi.querySelector('.vlp-adm-ico').textContent = (b.querySelector('.vlp-adm-ico') || {}).textContent || ''; mi.querySelector('.mt').textContent = b.getAttribute('aria-label') || b.title; const n = dotN(b), d = mi.querySelector('.vlp-adm-dot'); if (n) { d.hidden = false; d.textContent = '●' + n; } if (b.getAttribute('aria-current') === 'page') mi.setAttribute('aria-current', 'page'); if (b.dataset.menu === 'logout') mi.classList.add('sep'); mi.addEventListener('click', () => { close(); b.click(); }); panel.appendChild(mi); }); panel.hidden = false; more.setAttribute('aria-expanded', 'true'); const f = panel.querySelector('.vlp-adm-mi'); if (f) f.focus(); };
+      more.addEventListener('click', () => { if (panel.hidden) openP(); else close(); });
+      panel.addEventListener('keydown', (e) => { const items = [...panel.querySelectorAll('.vlp-adm-mi')], i = items.indexOf(document.activeElement); if (e.key === 'Escape') { close(); more.focus(); } else if (e.key === 'ArrowDown') { e.preventDefault(); (items[i + 1] || items[0]).focus(); } else if (e.key === 'ArrowUp') { e.preventDefault(); (items[i - 1] || items[items.length - 1]).focus(); } });
+      document.addEventListener('click', (e) => { if (!panel.hidden && !panel.contains(e.target) && !more.contains(e.target)) close(); });
+      nav.appendChild(more); nav.appendChild(panel); paintMore();
+      try { new MutationObserver(() => { if (document.body.contains(nav)) paintMore(); }).observe(nav, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'aria-current'] }); } catch (e) { /* 무시 */ }
+    }
     const main = shell.querySelector('.vlp-adm-main');
+    { const bn = effectiveTab === 'care' ? homeDoneBanner(admin, careList) : null; if (bn) main.appendChild(bn); }
     if (tabRenderers[effectiveTab]) main.appendChild(tabRenderers[effectiveTab]());
     else {
       main.appendChild(VLP.adminConsole.render());
     }
     root.appendChild(shell);
+    paintHomeDot(homeRows(admin, careList)); refreshDelSummary().then(() => { try { paintHomeDot(homeRows(admin, careList)); } catch (e) { /* 무시 */ } });
   }
 }
 
@@ -115,14 +256,11 @@ function _renderInner() {
 const ROLE_ATTR_LABELS = { customer: '구매자', karmaster: '카마스터', shop: '시공업체' };
 const GROUP_TYPE_LABELS = { region: '지역', community: '커뮤니티', industry: '산업군' };
 function renderGroupCatalogSection() {
-  const groups = Store.getGroups();
-  const box = el(`<div class="admin-controls" style="margin-bottom:18px;">
-    <h4>그룹(커뮤니티) 카탈로그</h4>
-    <div class="hint" style="margin-bottom:8px;">그룹 생성은 슈퍼바이저만 할 수 있습니다 — 이 데모에서는 관리자 계정이 슈퍼바이저를 겸합니다.</div>
-    <div style="margin-bottom:10px;">${groups.map(g => `<span class="tag">${g.name} · ${GROUP_TYPE_LABELS[g.type] || g.type}</span>`).join('') || '<span class="hint">등록된 그룹이 없습니다.</span>'}</div>
-    <div class="btn-row" style="margin-top:0;">
-      <input id="grp-name" type="text" placeholder="그룹명 (예: 대전)" style="flex:2;" autocomplete="off">
-      <select id="grp-type" style="flex:1;">
+  const box = el(`<div class="vlp-cd vlp-grp-new">
+    <h4>새 그룹 만들기</h4>
+    <div class="btn-row" style="margin-top:8px;">
+      <input id="grp-name" type="text" placeholder="그룹명 (예: 대전)" style="flex:2;" autocomplete="off" aria-label="그룹명">
+      <select id="grp-type" style="flex:1;" aria-label="그룹 유형">
         <option value="region">지역</option>
         <option value="community">커뮤니티</option>
         <option value="industry">산업군</option>
@@ -137,25 +275,6 @@ function renderGroupCatalogSection() {
     render();
   });
   return box;
-}
-function renderUsersTab() {
-  const users = Store.getUsers();
-  const wrap = el(`<div></div>`);
-  wrap.appendChild(el(`<div class="vlp-pane-head"><h2>사용자</h2></div>`));
-  wrap.appendChild(renderGroupCatalogSection());
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">전화번호가 공통 식별자입니다 — 같은 번호로 여러 역할에 로그인하거나 계약을 등록하면 한 사용자 아래 역할 속성이 함께 쌓입니다("한 사람 = 하나의 계정 + 여러 역할 속성" 원칙, user-account-role-model-spec.md 1.1절).</div>`));
-  if (users.length === 0) {
-    wrap.appendChild(el(`<div class="empty-state"><div class="big">👤</div>아직 식별된 사용자가 없습니다. 고객이 계약을 등록하거나 카마스터/시공업체가 로그인하면 여기 나타납니다.</div>`));
-    return wrap;
-  }
-  const table = el(`<table><tr><th>이름</th><th>전화번호</th><th>보유 역할</th><th>겸임 여부</th></tr></table>`);
-  users.forEach(u => {
-    const roles = (u.roleAttributes || []).map(ra => ROLE_ATTR_LABELS[ra.role] || ra.role);
-    const tr = elRow(`<tr><td>${u.name || '-'}</td><td>${u.phone}</td><td>${roles.map(r => `<span class="tag">${r}</span>`).join('') || '-'}</td><td>${roles.length > 1 ? '<span class="badge done">겸임중</span>' : '-'}</td></tr>`);
-    table.appendChild(tr);
-  });
-  wrap.appendChild(table);
-  return wrap;
 }
 
 // ===================== 업체 승인 탭 (user-account-role-model-spec.md 4.3절) =====================
@@ -207,52 +326,53 @@ function renderShopApprovalTab(admin) {
 }
 
 // ===================== 신차 케어 서비스 탭 (신차인도서비스와 완전히 독립된 최상위 목록) =====================
+const CARE_FILTERS = [['all', '전체', () => true], ['quote', '견적 대기', c => c.status === 'requested'], ['confirm', '고객확인 대기', c => c.status === 'quoted'],
+  ['active', '진행중 시공', c => SHOP_DISPLAY_STAGES.some(s => s.code === c.status)], ['wait', '확인 대기', c => ['고객검수대기', '수령대기'].includes(c.status)],
+  ['dispute', '품질 이의', c => careDisputed(c)], ['escalated', '운영자 중재 필요', c => careDisputed(c) && c.escalated], ['done', '완료', c => c.status === '수령확인' && c.shopRated]];
 function renderCareTab(careList) {
-  const wrap = el(`<div></div>`);
-  wrap.appendChild(el(`<div class="vlp-pane-head"><h2>신차 케어 서비스</h2>
+  const head = () => el(`<div class="vlp-pane-head"><h2>신차 케어 서비스</h2>
     <button class="btn btn-primary" style="width:auto;padding:10px 18px;" onclick="toggleNewCareForm()">${showNewCareForm ? '← 목록으로' : '+ 대리 신청'}</button>
-  </div>`));
+  </div>`);
+  if (showNewCareForm) { const w = el(`<div></div>`); w.appendChild(head()); w.appendChild(renderNewCareForm()); return w; }
+  if (careList.length === 0) { const w = el(`<div></div>`); w.appendChild(head()); w.appendChild(el(`<div class="empty-state"><div class="big">🛠️</div>아직 신청된 신차 케어 서비스가 없습니다.</div>`)); return w; }
 
-  const kpiWrap = el(`<div class="kpi-row"></div>`);
-  const quoteWaiting = careList.filter(c => c.status === 'requested').length;
-  const confirmWaitingCustomer = careList.filter(c => c.status === 'quoted').length;
-  const active = careList.filter(c => SHOP_DISPLAY_STAGES.some(s => s.code === c.status)).length;
-  const confirmWaiting = careList.filter(c => ['고객검수대기', '수령대기'].includes(c.status)).length;
-  const disputes = careList.filter(careDisputed).length;
-  const escalatedN = careList.filter(c => careDisputed(c) && c.escalated).length;
-  const done = careList.filter(c => c.status === '수령확인' && c.shopRated).length;
-  [[careList.length, '전체 신청'], [quoteWaiting, '견적 대기'], [confirmWaitingCustomer, '고객확인 대기'], [active, '진행중 시공'], [confirmWaiting, '확인 대기'], [disputes, '품질 이의(보완·중재)'], [escalatedN, '운영자 중재 필요'], [done, '완료']].forEach(([v, k]) => {
-    kpiWrap.appendChild(el(`<div class="kpi-box"><div class="v">${v}</div><div class="k">${k}</div></div>`));
+  // 건 목록과 같은 틀: 윗줄(제목+필터 칩) · 목록(카드 행) · 상세. 목록이 길면 목록만 스크롤(vlp-boot.js 칸 모드).
+  const wide = window.matchMedia && window.matchMedia('(min-width: 768px)').matches;
+  const wrap = el(`<div class="vlp-app vlp-app-admin lay-top" data-tab="care"><div class="vlp-app-strip"></div><div class="vlp-app-list" id="admin-care-list"></div><div class="vlp-app-detail" id="admin-care-detail"></div></div>`);
+    try { wrap.classList.toggle('list-closed', !!(window.VLP && VLP.caseView && VLP.caseView.listClosed && VLP.caseView.listClosed())); } catch (e) { /* 무시 */ } // 접힘을 첫 그림부터 적용(나중에 적용하면 목록이 한 번 보였다 사라져 깜박임)
+  const strip = wrap.querySelector('.vlp-app-strip'), listBox = wrap.querySelector('#admin-care-list'), detailBox = wrap.querySelector('#admin-care-detail');
+  const top = wide ? strip : listBox; strip.hidden = !wide;
+  top.appendChild(head());
+  const fk = careFilter(), cur = CARE_FILTERS.find(f => f[0] === fk) || CARE_FILTERS[0];
+  const chips = el(`<div class="vlp-chip-row" role="group" aria-label="상태 필터"></div>`); top.appendChild(chips);
+  CARE_FILTERS.forEach(([id, label, test]) => {
+    const n = careList.filter(test).length, b = el(`<button type="button" class="vlp-chip"></button>`);
+    b.dataset.filter = id; b.appendChild(document.createElement('span')).textContent = label; b.appendChild(document.createTextNode(' ')); b.appendChild(document.createElement('b')).textContent = String(n);
+    if (!n && id !== 'all') b.classList.add('zero'); b.setAttribute('aria-pressed', id === cur[0] ? 'true' : 'false');
+    b.addEventListener('click', () => { setCareFilter(id); render(); }); chips.appendChild(b);
   });
-  wrap.appendChild(kpiWrap);
-
-  if (showNewCareForm) { wrap.appendChild(renderNewCareForm()); return wrap; }
-
-  if (careList.length === 0) {
-    wrap.appendChild(el(`<div class="empty-state"><div class="big">🛠️</div>아직 신청된 신차 케어 서비스가 없습니다.</div>`));
-    return wrap;
-  }
-
-  const split = el(`<div class="split"><div class="side" id="admin-care-list"></div><div class="main" id="admin-care-detail"></div></div>`);
-  wrap.appendChild(split);
-
-  const listBox = split.querySelector('#admin-care-list');
-  listBox.appendChild(el(`<h3>전체 신청 목록</h3>`));
-  const onlyDispute = careFilter() === 'dispute';
-  // 이의 중재 메뉴: 운영자 중재가 필요한 건을 위로, 그 다음 시공사 보완 대기 건
-  const shown = onlyDispute ? careList.filter(careDisputed).sort((a, b) => (b.escalated ? 1 : 0) - (a.escalated ? 1 : 0)) : careList;
-  if (onlyDispute) { listBox.querySelector('h3').textContent = '이의 중재 대상'; if (!shown.length) listBox.appendChild(el(`<div class="hint">이의가 접수된 건이 없습니다.</div>`)); }
-  const table = el(`<table><tr><th>ID</th><th>고객</th><th>상태</th></tr></table>`);
+  // 운영자 중재가 필요한 건 → 시공사 보완 대기 → 나머지 순
+  const rank = c => (careDisputed(c) && c.escalated) ? 0 : careDisputed(c) ? 1 : 2;
+  const shown = careList.filter(cur[2]).map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map(x => x.c);
+  // 선택한 건이 이 목록에 없으면 상세에 남기지 않는다. 넓은 화면은 맨 위 건을 연다.
+  if (careSelectedId && !shown.some(c => c.id === careSelectedId)) careSelectedId = null;
+  if (!careSelectedId && wide && shown.length) careSelectedId = shown[0].id;
+  if (careSelectedId) sessionStorage.setItem('v6_admin_care_sel', careSelectedId); else sessionStorage.removeItem('v6_admin_care_sel');
+  if (!shown.length) listBox.appendChild(el(`<div class="hint">${cur[0] === 'dispute' ? '이의가 접수된 건이 없습니다.' : '해당하는 신청이 없어요.'}</div>`));
+  const rows = el(`<div class="vlp-rows"></div>`); listBox.appendChild(rows);
   shown.forEach(c => {
-    const tr = elRow(`<tr class="clickable ${c.id === careSelectedId ? 'active-row' : ''}"><td>${c.id}</td><td>${c.customer.name}</td><td><span class="badge ${careDisputed(c) ? 'wait' : amBadgeClass(c.status)}">${careStatusLabel(c)}</span></td></tr>`);
-    tr.addEventListener('click', () => selectCareOrder(c.id));
-    table.appendChild(tr);
+    const shop = Store.getShop(c.shopId), on = c.id === careSelectedId;
+    const r = el(`<button type="button" class="vlp-case-row${careDisputed(c) ? ' urgent' : ''}${on ? ' on' : ''}"><span class="vlp-row-top"><b class="vlp-row-title"></b><span class="vlp-row-badge"></span></span><span class="hint vlp-row-sub"></span><span class="vlp-row-prog"></span></button>`);
+    r.dataset.careId = c.id; if (on) r.setAttribute('aria-current', 'true');
+    r.querySelector('.vlp-row-title').textContent = c.carModel || '차종 미입력';
+    r.querySelector('.vlp-row-badge').innerHTML = `<span class="badge ${careDisputed(c) ? 'wait' : amBadgeClass(c.status)}">${careStatusLabel(c)}</span>`;
+    r.querySelector('.vlp-row-sub').textContent = [c.id, c.customer.name, shop ? shop.name : ''].filter(Boolean).join(' · ');
+    r.querySelector('.vlp-row-prog').textContent = careDisputed(c) ? (c.escalated ? '운영자 중재 필요' : `시공사 보완 대기 · 이의 ${c.disputeRounds || 1}회`) : (c.package && c.package.name) || '';
+    r.addEventListener('click', () => selectCareOrder(c.id)); rows.appendChild(r);
   });
-  listBox.appendChild(table);
-
-  const detailBox = split.querySelector('#admin-care-detail');
   const current = careSelectedId ? Store.getCareOrder(careSelectedId) : null;
-  detailBox.appendChild(current ? renderCareDetail(current) : el(`<div class="empty-state">왼쪽 목록에서 신청 건을 선택해 주세요.</div>`));
+  wrap.classList.toggle('has-case', !!current && wide); // 폰은 목록 아래에 상세가 이어진다(돌아가기 버튼이 없어 목록을 숨기지 않음)
+  detailBox.appendChild(current ? renderCareDetail(current) : el(`<div class="vlp-empty-detail hint">왼쪽에서 신청 건을 선택해 주세요.</div>`));
   return wrap;
 }
 function toggleNewCareForm() { showNewCareForm = !showNewCareForm; render(); }
@@ -293,32 +413,77 @@ function careInfoHTML(c) {
   return `<div class="admin-controls" style="margin-bottom:14px;">${rows.map(([k, v]) => `<div class="summary-line"><span>${k}</span><span>${v}</span></div>`).join('')}</div>`;
 }
 function renderCareDetail(c) {
-  const shop = Store.getShop(c.shopId);
-  const wrap = el(`<div>
-    <h3>${c.id} · ${c.customer.name}</h3>
-    <table style="margin-bottom:18px;">
-      <tr><th>차종</th><th>시공사</th><th>상태</th></tr>
-      <tr><td>${c.carModel || '-'}</td><td>${shop ? shop.name : '-'}</td><td><span class="badge ${careDisputed(c) ? 'wait' : amBadgeClass(c.status)}">${careStatusLabel(c)}</span></td></tr>
-    </table>
-    ${careInfoHTML(c)}
-    ${c.customRequest ? `<div class="msg-box" style="margin-bottom:14px;"><b>요청사항</b><br>${c.customRequest}</div>` : ''}
-    <div id="care-action-slot"></div>
-    <details class="admin-controls">
-      <summary style="cursor:pointer;font-weight:800;font-size:13px;">전체 처리 이력 보기 (${(c.log || []).length}건)</summary>
-      <div style="margin-top:10px;">${renderHistoryLogHTML(c)}</div>
-    </details>
-  </div>`);
-  wrap.querySelector('#care-action-slot').appendChild(renderCareAction(c));
-  // 이의 중재 때 근거가 되는 대화(읽기 전용, 사유를 남긴 뒤에만 본문이 보인다)
-  const cb = el(`<div class="admin-controls"><h4>고객·시공사 대화</h4><div class="hint" style="margin-bottom:8px;">${(c.messages || []).length}건 · 읽기 전용입니다. 열람 사유를 남기면 본문이 보이고, 열람 기록이 남습니다.</div><button type="button" class="btn btn-sm" id="care-chat-open">대화 보기</button></div>`);
-  cb.querySelector('#care-chat-open').addEventListener('click', (e) => VLP.chat.open(c.id, { role: 'admin', readOnly: true, api: VLP.careApi.admin, summary: (c.carModel || '차량') + ' · ' + c.id + ' · 읽기 전용', opener: e.currentTarget }));
-  wrap.querySelector('#care-action-slot').parentElement.insertBefore(cb, wrap.querySelector('#care-action-slot').nextSibling);
-  return wrap;
+  const shop = Store.getShop(c.shopId), V = window.VLP, U = V.ui;
+  const disputed = careDisputed(c);
+  const badgeHTML = `<span class="badge ${disputed ? 'wait' : amBadgeClass(c.status)}">${careStatusLabel(c)}</span>`;
+  const nextText = disputed ? (c.escalated ? '이의 한도를 넘어 운영자 중재가 필요합니다. 아래에서 중재를 처리해 주세요.' : '시공사가 보완 중입니다. 운영자 조치는 필요하지 않습니다.') : `${c.customer.name} 고객 · ${shop ? shop.name : '시공사 미정'}`;
+  // 탭은 고객·시공사 케어 상세와 같은 결: 개요 · 진행 · 이력 (운영자는 처리할 일이 있는 진행 탭을 먼저 연다)
+  const photosCard = (title, list) => {
+    const box = el(`<div class="vlp-cd"><h4></h4><div class="care-photos"></div></div>`); box.querySelector('h4').textContent = title + ' ' + list.length + '장';
+    list.forEach((p) => { const f = el('<figure class="care-photo"><img alt=""><figcaption class="hint"></figcaption></figure>'); f.querySelector('img').src = p.src || ''; f.querySelector('img').alt = (p.label || title) + ' 사진'; f.querySelector('figcaption').textContent = p.label || ''; box.querySelector('.care-photos').appendChild(f); });
+    return box;
+  };
+  const fill = (box, rows) => { rows.filter((r) => r && r[1] != null && r[1] !== '').forEach(([k, v]) => { const d = el(`<div class="summary-line"><span></span><span></span></div>`); d.children[0].textContent = k; d.children[1].textContent = v; box.appendChild(d); }); return box; };
+  const card = (title, rows) => { const b = el(`<div class="vlp-cd"><h4></h4></div>`); b.querySelector('h4').textContent = title; return fill(b, rows); };
+  const dt = (t) => { if (!t) return ''; const d = new Date(t), p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const overview = () => {
+    const w = el(`<div class="vlp-ov"></div>`);
+    const cfgv = (k) => (V.config ? V.config.get(k) : null);
+    const modeL = ((cfgv('careReceiveModes') || []).find((m) => m.code === (c.receiveMode || cfgv('careDefaultReceiveMode'))) || {}).label || '-';
+    w.appendChild(card('계약 요약', [['서비스 계약번호', c.id], ['차종', c.carModel || '-'], ['신청일', dt(c.createdAt)], ['신청 방식', c.mode === 'online' ? '온라인 즉시견적' : (c.mode ? '방문 협의' : '')], ['현재 상태', careStatusLabel(c)], ['대상 차량 예약', c.reservationId]]));
+    w.appendChild(card('고객', [['이름', c.customer && c.customer.name], ['연락처', c.customer && c.customer.phone ? (U.formatPhone ? U.formatPhone(c.customer.phone) : c.customer.phone) : '']]));
+    w.appendChild(card('시공사', [['업체명', shop ? shop.name : '-'], ['주소', shop && shop.address], ['연락처', shop && shop.phone ? (U.formatPhone ? U.formatPhone(shop.phone) : shop.phone) : ''], ['인증 상태', shop && shop.verificationStatus ? ({ approved: '승인됨', verified: '승인됨', pending: '승인 대기', rejected: '반려' }[shop.verificationStatus] || shop.verificationStatus) : '']]));
+    if (shop && (shop.address || shop.name)) {
+      const lc = el(`<div class="vlp-cd"><h4>시공사 위치</h4><p></p></div>`), p = lc.querySelector('p');
+      p.textContent = [shop.name, shop.address, shop.phone].filter(Boolean).join(' · ') + ' ';
+      if (shop.address) { const a = el('<a class="vlp-sum-link" target="_blank" rel="noopener noreferrer">길찾기 ›</a>'); a.href = String(cfgv('navLinkTemplate') || '').replace('{q}', encodeURIComponent(shop.address || shop.name)); p.appendChild(a); }
+      w.appendChild(lc);
+    }
+    w.appendChild(card('서비스 내용', [['패키지', c.package ? c.package.name + ' · ' + fmtMoney(c.package.price) : '-'], ['추가 옵션', (c.options || []).length ? c.options.map((x) => x.name + ' ' + fmtMoney(x.price)).join(', ') : '없음'], ['견적가', c.quotedPrice != null ? fmtMoney(c.quotedPrice) : '견적 전'], ['수령 방식', modeL], ['포인트 사용', c.pointsUsed ? fmtMoney(c.pointsUsed).replace('원', 'P') : '']]));
+    if (c.customRequest) w.appendChild(el(`<div class="vlp-cd"><h4>고객 요청사항</h4><p></p></div>`)).querySelector('p').textContent = c.customRequest;
+    const pc = c.priceMatch === true ? '정찰제 확인: 견적과 청구가 일치했어요' : (c.priceMatch === false ? '정찰제 확인: 추가금 제보가 접수됐어요' : '견적 = 청구 여부는 완료 후 확인합니다');
+    w.appendChild(el(`<div class="vlp-cd"><h4>정찰제</h4><p></p></div>`)).querySelector('p').textContent = pc;
+    return w;
+  };
+  const progress = () => {
+    const w = el(`<div class="vlp-ov"></div>`);
+    const IDX = { REQUESTED: -1, QUOTED: -1, CONFIRMED: -1, RECEIVED: 0, WORKING: 1, INSPECTING: 2, CUSTOMER_INSPECT: 2, REWORK: 2, ESCALATED: 2, RELEASED: 3, READY_TO_RECEIVE: 4, PRICE_CHECK: 5, DISPUTED: 5, RATE: 5, DONE: 5 };
+    const ph = V.careApi.phaseOf(c), i = IDX[ph] == null ? -1 : IDX[ph];
+    const st = (k) => (i >= 5 || k < i ? 'done' : (k === i ? 'cur' : 'todo'));
+    const logT = (re) => { const l = (c.log || []).find((x) => re.test(x.msg)); return l ? dt(l.t).slice(5) : ''; };
+    const nodes = [{ s: st(0), t: '입고 확인', sub: [logT(/^입고/), c.intakeRoute ? '' : ''].filter(Boolean).join(' · ') }, { s: st(1), t: i === 1 ? '작업 중' : '작업', sub: (c.photos || []).length ? '현장 사진 ' + c.photos.length : '' }, { s: st(2), t: '검수 요청', sub: ph === 'REWORK' ? '보완 중' : (ph === 'ESCALATED' ? '운영자 중재 중' : '') }, { s: st(3), t: '출차', sub: logT(/출차/) }, { s: st(4), t: '수령 확인', sub: logT(/수령 확인/) }];
+    const box = el(`<div class="vlp-cd"><h4>진행</h4></div>`); box.appendChild(V.delivery.stepper(nodes, '신차케어 진행 순서')); w.appendChild(box);
+    w.appendChild(el(careInfoHTML(c).replace('class="admin-controls" style="margin-bottom:14px;"', 'class="vlp-cd"').replace('<div class="summary-line">', '<h4>입고·청구</h4><div class="summary-line">')));
+    if ((c.intakePhotos || []).length) w.appendChild(photosCard('사전 촬영', c.intakePhotos));
+    if ((c.photos || []).length) w.appendChild(photosCard('현장 사진', c.photos));
+    return w;
+  };
+  // 운영 탭: 관리자 전용 — 이의·중재 현황, 대리 처리
+  const ops = () => {
+    const w = el(`<div class="vlp-ov"></div>`);
+    const dc = el(`<div class="vlp-cd"><h4>이의·중재 현황</h4></div>`);
+    const rows = disputed ? [['상태', c.escalated ? '운영자 중재 필요' : '시공사 보완 중'], ['이의 회차', (c.disputeRounds || 1) + '회째'], ['사유', c.disputeReason || '(사유 없음)']] : [['상태', c.priceMatch === false ? '정찰제 불일치 제보 접수' : '이의 없음']];
+    fill(dc, rows); w.appendChild(dc);
+    const act = el(`<div id="care-action-slot"></div>`); act.appendChild(renderCareAction(c)); w.appendChild(act);
+    w.appendChild(V.caseView.adminNotesCard(c.id)); w.appendChild(V.caseView.adminLogCard(c.id));
+    return w;
+  };
+  const history = () => el(`<div class="vlp-cd"><h4>전체 처리 이력 (${(c.log || []).length}건)</h4><div>${renderHistoryLogHTML(c)}</div></div>`);
+  const root = V.caseView.detail({ role: 'admin', contract: { contractId: c.id, vehicleModel: (c.carModel || '차종 미입력') }, idx: 0, stateHTML: badgeHTML, next: nextText, progress: '', graphHTML: '', aside: c.id,
+    tabs: [{ id: 'overview', label: '개요', render: overview }, { id: 'progress', label: '진행', render: progress }, { id: 'ops', label: '운영', render: ops }, { id: 'history', label: '이력', render: history }], defaultTab: disputed ? 'ops' : 'progress', noGuide: true,
+    onChat: (btn) => V.chat.open(c.id, { role: 'admin', readOnly: true, api: V.careApi.admin, summary: (c.carModel || '차량') + ' · ' + c.id + ' · 읽기 전용', opener: btn }) });
+  root.classList.add('vlp-care-case'); if (disputed) root.classList.add('is-urgent');
+  VLP.adminHome.crumb(root, c.id);
+  const ch = root.querySelector('.vlp-case-chat'); if (ch) ch.id = 'care-chat-open';
+  const stp = root.querySelector('.vlp-case-stp'); if (stp) stp.hidden = true; // 배송 5단계 설명은 케어에 해당 없음
+  return root;
 }
 
 function renderCareAction(c) {
   const box = el(`<div class="admin-controls"><h4>관리자 대리 처리 (신속 진행용)</h4><div id="care-action-inner"></div></div>`);
   const inner = box.querySelector('#care-action-inner');
+  // 대리 처리 버튼을 누르면(실제 동작보다 먼저) 관리자 처리 기록에 남긴다
+  box.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('button'); if (b && !b.disabled && box.contains(b)) Store.logAdminAction(c.id, 'proxy', '대리 처리 · ' + b.textContent.replace(/\s+/g, ' ').trim().slice(0, 60)); }, true);
 
   if (c.transit && c.transit.active) {
     const tp = transitProgress(c);

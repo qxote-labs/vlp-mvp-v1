@@ -7,8 +7,8 @@
   'use strict';
   g.VLP = g.VLP || {};
   const V = g.VLP;
-  const LABEL = { customer: '고객', karmaster: '카마스터', shop: '시공사' };
-  const st = { role: null, name: '', phone: '', action: null, status: null, open: false };
+  const LABEL = { customer: '고객', karmaster: '카마스터', shop: '시공사', admin: '관리자' };
+  const st = { role: null, roleLabel: '', sync: false, note: '', name: '', phone: '', action: null, status: null, open: false };
   let bound = false;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const node = () => (typeof document === 'undefined' ? null : document.getElementById('vlp-rolebar'));
@@ -20,18 +20,19 @@
     el.classList.toggle('is-alert', !!st.status);
     const roles = V.roles && st.phone ? V.roles.forPhone(st.phone) : [];
     const multi = roles.length > 1;
-    const label = '<b>' + esc(LABEL[role] || role) + '</b>' + (st.name ? ' · ' + esc(st.name) : '');
+    const label = '<b>' + esc(st.roleLabel || LABEL[role] || role) + '</b>' + (st.name ? ' · ' + esc(st.name) : '');
     let who;
     if (multi) who = '<button type="button" class="rb-who rb-switch" aria-haspopup="listbox" aria-expanded="' + (st.open ? 'true' : 'false') + '" aria-label="역할 전환, 현재 ' + esc(LABEL[role] || role) + '">' + label + ' <span aria-hidden="true">' + (st.open ? '▴' : '▾') + '</span></button>';
     else who = '<span class="rb-who">' + label + '</span>';
     let right = '';
     if (st.status) right = '<span class="rb-status" role="status" aria-live="polite" title="' + esc(st.status.title || st.status.text) + '">' + esc(st.status.text) + '</span>';
+    else if (st.sync) right = '<span class="rb-sync"><i class="sync-dot"></i>실시간 동기화 중</span>';
     else if (st.action) right = '<button type="button" class="rb-action"' + (st.action.id ? ' id="' + esc(st.action.id) + '"' : '') + '>' + esc(st.action.label) + '</button>';
     let menu = '';
     if (multi && st.open) {
       menu = '<div class="rb-menu" role="listbox" aria-label="역할 선택">' + roles.map((r) => '<button type="button" role="option" class="rb-opt" data-role="' + esc(r.role) + '" aria-selected="' + (r.role === role ? 'true' : 'false') + '"><b>' + esc(r.label) + '</b><span>' + esc(r.name || '') + '</span>' + (r.role === role ? '<i>현재 역할 ✓</i>' : '') + '</button>').join('') + '</div>';
     }
-    el.innerHTML = who + right + menu;
+    el.title = st.note || ''; el.innerHTML = who + right + menu;
     const btn = el.querySelector('.rb-action');
     if (btn && st.action) btn.addEventListener('click', st.action.onClick);
     bind(el);

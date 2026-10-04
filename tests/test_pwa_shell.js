@@ -40,7 +40,7 @@ const BASE = 'http://localhost:8000';
     const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
     console.log('2) 서비스 워커 활성, 설치 가능 오류:', JSON.stringify(installabilityErrors));
     assert.deepEqual(installabilityErrors, []);
-    const cached = await page.evaluate(async () => (await (await caches.open('vlp-shell-v62')).keys()).length);
+    const cached = await page.evaluate(async () => (await (await caches.open('vlp-shell-v97')).keys()).length);
     assert.ok(cached >= 20, '앱 셸 캐시 항목 ' + cached);
 
     // 3) 오프라인에서 마지막 화면 렌더 (고객·카마스터·시공사·관리자)
@@ -51,7 +51,7 @@ const BASE = 'http://localhost:8000';
       await page.waitForFunction(() => document.body.innerText.length > 30, null, { timeout: 8000 }).catch(() => {});
       const ok = await page.evaluate(() => !!document.querySelector('.navbar, #vlp-rolebar') && document.body.innerText.length > 30);
       assert.ok(ok, html + ' 오프라인 렌더 ' + page.url() + ' ' + (await page.evaluate(() => document.body.innerText.slice(0, 80))));
-      assert.ok(await page.isVisible(html === 'admin' ? '#vlp-offline-banner' : '#vlp-rolebar .rb-status'), html + ' 오프라인 표시');
+      assert.ok(await page.isVisible('#vlp-rolebar .rb-status'), html + ' 오프라인 표시');
       if (html === 'customer') banner = await page.innerText('#vlp-rolebar .rb-status');
     }
     assert.match(banner, /오프라인/);

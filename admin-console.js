@@ -13,8 +13,10 @@
   const FILTERS = [['all', '전체'], ['moving', '배송 중'], ['exception', '예외·지연'], ['stale', '수집 지연'], ['done', '완료']];
   const filterKey = 'vlp_adm_filter';
 
+  let _cache = null; // 메뉴를 오갈 때 목록을 바로 그리기 위한 직전 불러온 값(곧바로 새로 불러와 맞춘다)
   function render() {
     const wrap = el('<div class="vlp-app vlp-app-admin lay-top" data-tab="cases"><div class="vlp-app-strip" hidden></div><div class="vlp-app-list"></div><div class="vlp-app-detail"></div></div>');
+    try { wrap.classList.toggle('list-closed', !!(window.VLP && VLP.caseView && VLP.caseView.listClosed && VLP.caseView.listClosed())); } catch (e) { /* 무시 */ } // 접힘을 첫 그림부터 적용(나중에 적용하면 목록이 한 번 보였다 사라져 깜박임)
     const strip = wrap.querySelector('.vlp-app-strip'), listPane = wrap.querySelector('.vlp-app-list'), detailPane = wrap.querySelector('.vlp-app-detail');
     const route = V.caseView.route;
     let data = { items: [], deliveries: {}, tracking: {}, collect: {} }, loaded = false, lastSig = null, curDetail = null;
@@ -41,7 +43,7 @@
     // ---- 개입 ▾ ----
     function interventionMenu(c, d, btn) {
       const menu = el('<div class="vlp-menu vlp-intervene"></div>'); let close;
-      const item = (label, run, note) => { const b = el('<button type="button" class="vlp-menu-item"></button>'); b.textContent = label + (note ? ' — ' + note : ''); if (!run) { b.disabled = true; b.classList.add('off'); } else b.addEventListener('click', () => { close(); run(btn); }); menu.appendChild(b); };
+      const item = (label, run, note) => { const b = el('<button type="button" class="vlp-menu-item"></button>'); { const t = document.createElement('span'); t.appendChild(document.createTextNode(label)); if (note) { const n = document.createElement('span'); n.className = 'mi-note'; n.textContent = note; t.appendChild(n); } b.appendChild(t); } if (!run) { b.disabled = true; b.classList.add('off'); } else b.addEventListener('click', () => { close(); run(btn); }); menu.appendChild(b); };
       item('지연 안내 게시 요청', d && d.storageState !== 'DELIVERED' ? (o) => delayForm(c, d, o) : null, d ? (d.storageState === 'DELIVERED' ? '종결된 건' : '') : '배송 전');
       item('시공사 연락 (이의 중재)', null, '서버 기능 확정 후 제공');
       item('자동 수집 재시도', null, '서버 기능 확정 후 제공');
@@ -56,13 +58,14 @@
       f.addEventListener('submit', async (ev) => {
         ev.preventDefault(); const b = f.querySelector('button'), er = f.querySelector('.vlp-error'); b.disabled = true; er.hidden = true;
         const body = { reasonCode: f.elements.reasonCode.value }; const n = f.elements.note.value.trim(); if (n) body.note = n;
-        try { useAdminSession(); await V.api.deliveries.raiseException(d.deliveryId, body); close(); load(true); } catch (e) { er.textContent = U.errorText(e); er.hidden = false; b.disabled = false; }
+        try { useAdminSession(); await V.api.deliveries.raiseException(d.deliveryId, body); Store.logAdminAction(c.contractId, 'intervene', '지연 안내 게시 · ' + (labels[body.reasonCode] || body.reasonCode)); close(); load(true); } catch (e) { er.textContent = U.errorText(e); er.hidden = false; b.disabled = false; }
       });
       close = V.delivery.openSheet('지연 안내 게시', f, opener);
     }
 
     // ---- 상세 ----
-    function summaryTab(c, x, tr) {
+    // 운영 탭: 관리자 전용 — 표시↔저장 상태 매핑, 수집·알림 현황
+    function opsTab(c, x, tr) {
       const d = x.d, w = el('<div class="vlp-ov"></div>');
       // 표시 상태 ↔ 저장 상태 (구성안 5.4)
       const map = el('<div class="vlp-cd vlp-state-map"><h4>상태 매핑</h4></div>');
@@ -80,7 +83,17 @@
       } else cc.appendChild(el('<div class="hint">수집 대상이 아닙니다.</div>'));
       cc.appendChild(el('<div class="summary-line"><span>알림 발송</span><span>집계 항목 미정</span></div>'));
       w.appendChild(cc);
+      w.appendChild(V.caseView.adminNotesCard(c.contractId)); w.appendChild(V.caseView.adminLogCard(c.contractId));
+      return w;
+    }
+    // 개요 탭: 고객·카마스터 화면과 같은 카드(계약 요약·카마스터 안내·최근 이벤트·배송 정보)
+    function overviewTab(c, x, tr) {
+      const d = x.d, w = el('<div class="vlp-ov"></div>');
       w.appendChild(V.caseView.summaryCard(c, 'admin', d, tr, { onHistory: () => { const b = detailPane.querySelector('.vlp-tab[data-tab=history]'); if (b) b.click(); } }));
+      const note = V.caseView.noteCard(tr, '카마스터 안내'); if (note) w.appendChild(note);
+      const ev = V.caseView.recentEvents(tr); if (ev) w.appendChild(ev);
+      const di = V.caseView.deliveryInfoCard(d, tr); if (di) w.appendChild(di);
+      const cs = V.caseView.constructionCard(d, tr, true); if (cs) w.appendChild(cs);
       return w;
     }
     function routeTab(c, x, tr) {
@@ -95,9 +108,11 @@
     }
     function buildDetail(c) {
       const x = describe(c), d = x.d, tr = data.tracking[c.contractId];
-      const tabs = [{ id: 'summary', label: '요약', render: () => summaryTab(c, x, tr) }, { id: 'route', label: '경로', render: () => routeTab(c, x, tr) }, { id: 'history', label: '이력', render: () => V.caseView.historyTab(d, tr, true, c) }];
+      const tabs = [{ id: 'overview', label: '개요', render: () => overviewTab(c, x, tr) }, { id: 'location', label: '위치', render: () => routeTab(c, x, tr) }, { id: 'construction', label: '시공', render: () => V.caseView.constructionTab(d, tr, true) }, { id: 'ops', label: '운영', render: () => opsTab(c, x, tr) }, { id: 'history', label: '이력', render: () => V.caseView.historyTab(d, tr, true, c) }];
       const ib = el('<button type="button" class="vlp-hero-extra vlp-intervene-btn" aria-haspopup="dialog">개입 ▾</button>'); ib.addEventListener('click', () => interventionMenu(c, d, ib));
-      return V.caseView.detail({ role: 'admin', contract: c, delivery: d, idx: x.idx, stateHTML: x.badge, next: x.next, aside: c.customerDisplayName || '', tabs, defaultTab: 'summary', onBack: route.clear, onChat: (b) => openChat(c, b), heroExtra: ib });
+      const dRoot = V.caseView.detail({ role: 'admin', contract: c, delivery: d, idx: x.idx, stateHTML: x.badge, next: x.next, aside: c.customerDisplayName || '', tabs, defaultTab: 'ops', onBack: route.clear, onChat: (b) => openChat(c, b), heroExtra: ib });
+      if (V.adminHome) V.adminHome.crumb(dRoot, c.contractId);
+      return dRoot;
     }
 
     // ---- 목록 ----
@@ -118,8 +133,10 @@
       if (!loaded) return;
       if (curDetail && curDetail.__off) curDetail.__off();
       let id = route.get(), c = id && data.items.find((x) => x.contractId === id);
+      if (c && !passes(getFilter(), describe(c))) { c = null; id = null; try { g.history.replaceState(null, '', g.location.pathname + g.location.search); } catch (e) { /* 무시 */ } } // 필터에 안 걸리는 건이 상세에 남지 않게
       const rows = paintListSafe(id); 
       if (!c && wide() && rows.length) { c = rows[0].c; id = c.contractId; try { g.history.replaceState(null, '', g.location.pathname + g.location.search + '#case=' + encodeURIComponent(id)); } catch (e) { /* 무시 */ } listPane.querySelectorAll('.vlp-case-row').forEach((r) => { if (r.dataset.contractId === id) { r.classList.add('on'); r.setAttribute('aria-current', 'true'); } }); }
+      if (wrap.isConnected && V.chat && V.chat.isOpen() && !(c && V.chat.isOpenFor(c.contractId))) V.chat.close(); // 다른 건의 대화 열람을 남기지 않는다
       wrap.classList.toggle('has-case', !!c);
       detailPane.innerHTML = '';
       if (c) { curDetail = buildDetail(c); detailPane.appendChild(curDetail); } else { curDetail = null; detailPane.appendChild(el('<div class="vlp-empty-detail hint">왼쪽에서 건을 선택해 주세요.</div>')); }
@@ -134,15 +151,30 @@
         const items = page.items || [], collect = {}, deliveries = {}, tracking = {};
         (cs.items || []).forEach((r) => { collect[r.deliveryId] = r; });
         await Promise.all(items.filter((c) => c.deliveryId).map(async (c) => { try { deliveries[c.contractId] = await V.api.deliveries.get(c.deliveryId); tracking[c.contractId] = await V.delivery.fetchTracking(c.deliveryId); } catch (e) { /* 건별 생략 */ } }));
-        const sig = JSON.stringify([items, collect, deliveries, tracking, getFilter(), route.get()]);
+        const sig = JSON.stringify([items, collect, deliveries, tracking]); // 선택된 건(route)은 넣지 않는다: 첫 그림이 맨 위 건을 고르며 바꾸는 값이라, 넣으면 몇 초 뒤 같은 화면을 다시 그려 깜박였다
         if (!force && sig === lastSig) return;
-        lastSig = sig; data = { items, deliveries, tracking, collect }; loaded = true; paint(); announce();
+        lastSig = sig; data = { items, deliveries, tracking, collect }; _cache = { sig, data, at: Date.now() }; loaded = true; paint(); announce();
       } catch (e) { if (!loaded) { listPane.innerHTML = ''; listPane.appendChild(el('<div class="vlp-error" role="alert">' + esc(U.errorText(e)) + '</div>')); } }
     }
-    g.addEventListener('vlp-route', () => { if (!document.body.contains(wrap)) return; lastSig = null; paint(); g.scrollTo && g.scrollTo(0, 0); });
-    load(true);
+    g.addEventListener('vlp-route', () => { if (!document.body.contains(wrap)) return; paint(); g.scrollTo && g.scrollTo(0, 0); });
+    if (_cache && Date.now() - _cache.at < 60000) { data = _cache.data; lastSig = _cache.sig; loaded = true; paint(); announce(); load(false); } else load(true);
     const timer = setInterval(() => { if (!document.body.contains(wrap)) { clearInterval(timer); return; } load(false); }, V.config.get('pollIntervalMs'));
     return wrap;
   }
-  V.adminConsole = { render };
+  // 관리자 홈이 쓰는 요약: 예외·지연 건, 수집 지연 건 (화면을 그리지 않고 목록만 읽는다)
+  async function summary() {
+    useAdminSession();
+    const [page, cs] = await Promise.all([V.api.contracts.list({ limit: 100 }), V.api.admin.collectionStatus({ limit: 100 })]);
+    const items = page.items || [], collect = {}, exceptions = [], stale = [];
+    (cs.items || []).forEach((r) => { collect[r.deliveryId] = r; });
+    await Promise.all(items.filter((c) => c.deliveryId).map(async (c) => {
+      try {
+        const d = await V.api.deliveries.get(c.deliveryId), col = collect[c.deliveryId];
+        const row = { id: c.contractId, label: [c.vehicleModel || '차량', c.customerDisplayName].filter(Boolean).join(' · ') };
+        if (d && d.displayState === 'EXCEPTION') exceptions.push(row); else if (col && col.collectionStatus === 'STALE') stale.push(row);
+      } catch (e) { /* 건별 생략 */ }
+    }));
+    return { exceptions, stale };
+  }
+  V.adminConsole = { render, summary };
 })(typeof window !== 'undefined' ? window : globalThis);

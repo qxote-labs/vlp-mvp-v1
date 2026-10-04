@@ -16,7 +16,7 @@ async function loginAs(page, role, who, qs) {
       sessionStorage.setItem('v6_customer_logged', '1'); sessionStorage.setItem('v6_customer_name', c.name); sessionStorage.setItem('v6_customer_phone', c.phone); sessionStorage.setItem('v6_view', 'history');
     } else if (role === 'shop') sessionStorage.setItem('v6_shop_id', who);
     else if (role === 'karmaster') sessionStorage.setItem('v6_km_id', who);
-    else sessionStorage.setItem('v6_admin_id', who);
+    else { sessionStorage.setItem('v6_admin_id', who); sessionStorage.setItem('v6_admin_tab', 'delivery'); } // 기존 시나리오는 건 목록에서 시작(홈 시나리오는 test_admin_home)
   }, { role, who });
   await page.goto(BASE + '/' + PAGE[role] + '.html' + (qs == null ? '?nosw=1' : qs));
 }

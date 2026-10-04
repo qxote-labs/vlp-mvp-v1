@@ -92,9 +92,9 @@ const EXPECT = { // id → [단계, 시공사]
     const ad = await prime(); await ad.setViewportSize({ width: 1440, height: 900 });
     await loginAs(ad, 'supervisor', 'admin_super', '');
     await ad.waitForSelector('.vlp-adm-nav-btn[data-menu=dispute]'); assert.ok(/●2/.test(await text(ad, '.vlp-adm-nav-btn[data-menu=dispute]')));
-    await ad.click('.vlp-adm-nav-btn[data-menu=care]'); await ad.waitForSelector('#admin-care-list tr.clickable');
-    assert.strictEqual(await ad.locator('#admin-care-list tr.clickable').count(), 20, '전체 케어 20건');
-    await ad.locator('#admin-care-list tr.clickable', { hasText: '20-202601-9014' }).first().click(); await ad.waitForSelector('#admin-care-detail');
+    await ad.click('.vlp-adm-nav-btn[data-menu=care]'); await ad.waitForSelector('#admin-care-list .vlp-case-row');
+    assert.strictEqual(await ad.locator('#admin-care-list .vlp-case-row').count(), 20, '전체 케어 20건');
+    await ad.locator('#admin-care-list .vlp-case-row', { hasText: '20-202601-9014' }).first().click(); await ad.waitForSelector('#admin-care-detail');
     t = await text(ad, '#admin-care-detail'); assert.ok(/추가 300,000원/.test(t), t.slice(0, 300));
     console.log('✔ 관리자: 전체 20건, 이의 큐 2건, 정찰제 불일치 건 청구 표시');
     assert.deepStrictEqual(errs, []); console.log('PASS test_care_seed_cases');

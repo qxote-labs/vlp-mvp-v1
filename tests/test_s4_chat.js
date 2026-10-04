@@ -61,7 +61,7 @@ const BASE = 'http://localhost:8000';
     // 관리자
     const a = await ctx.newPage(); hook(a, 'admin'); await a.setViewportSize({ width: 1400, height: 900 });
     await a.goto(BASE + '/admin.html?nosw=1');
-    await a.evaluate(() => { const ad = Store.getAdmins().find(x => x.adminScope === 'community'); window.tryLogin(ad.id); });
+    await a.evaluate(() => { const ad = Store.getAdmins().find(x => x.adminScope === 'community'); window.tryLogin(ad.id, 'delivery'); });
     await a.waitForSelector('.vlp-app-admin .vlp-case-row', { timeout: 15000 });
     await a.locator('.vlp-app-admin .vlp-case-row[data-contract-id="' + cid + '"]').click(); await a.waitForSelector('.vlp-case');
     await a.click('.vlp-case-chat');
@@ -69,9 +69,20 @@ const BASE = 'http://localhost:8000';
     assert.strictEqual(await a.locator('.vlp-chatdock textarea').count(), 0);
     assert.ok(!/재전송 테스트/.test(await a.locator('.vlp-chat-body').textContent()));
     ok('관리자: 입력창 없음(읽기 전용), 사유 전 본문 가림');
-    await a.click('.vlp-chat-reason'); await a.selectOption('#vlp-reason-sel', { index: 1 }); await a.click('.vlp-reason-go');
+    await a.click('.vlp-chat-reason');
+    assert.ok(await a.locator('.vlp-reason-go').isDisabled(), '사유 선택 전에는 비활성');
+    await a.selectOption('#vlp-reason-sel', 'OTHER'); assert.ok(await a.locator('.vlp-reason-go').isDisabled(), '기타는 내용을 써야 활성');
+    await a.fill('#vlp-reason-note', '민원 접수 N-1234 확인'); assert.ok(await a.locator('.vlp-reason-go').isEnabled(), '기타 + 내용 → 활성');
+    await a.click('.vlp-reason-go');
+    await a.waitForFunction(() => /동의를 기다리는 중/.test((document.querySelector('.vlp-chat-masked') || { innerText: '' }).innerText));
+    ok('관리자: 동의 요청 → 응답 대기(본문은 계속 가려짐)');
+    assert.ok(await a.evaluate((i) => VLP.api.admin.recordSensitiveView({ viewType: 'CHAT_FULL', contractId: i, reasonCode: 'COMPLAINT' }).then(() => false, (e) => e.status === 403), cid), '동의 없이 열람 기록 → 403');
+    await a.evaluate((i) => { const c = Store.latestChatConsent(i); Store.respondChatConsent(c.id, 'customer', true); Store.respondChatConsent(c.id, 'other', true); }, cid);
+    await a.waitForSelector('.vlp-chat-view', { timeout: 8000 }); await a.click('.vlp-chat-view');
+
     await a.waitForFunction(() => /재전송 테스트/.test(document.querySelector('.vlp-chat-body').textContent));
     assert.strictEqual(await a.locator('.vlp-chat-masked').count(), 0);
+    const sv = await a.evaluate(() => VLP.api.adapter().admin.sensitiveViews()); assert.ok(sv.some(v => v.reasonCode === 'OTHER' && v.note === '민원 접수 N-1234 확인'), '열람 기록에 사유 코드와 메모가 남음');
     ok('사유 선택 → 열람 기록 → 본문 표시');
   } catch (e) { console.error('FAIL', e.message); process.exitCode = 1; }
   if (errs.length) { console.error('JS 오류:\n' + errs.join('\n')); process.exitCode = 1; }

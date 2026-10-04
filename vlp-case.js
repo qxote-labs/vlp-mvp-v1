@@ -64,7 +64,7 @@
     const root = el('<section class="vlp-case" aria-label="계약 상세"><div class="vlp-case-top"><header class="vlp-case-hdr"><button type="button" class="vlp-case-back" aria-label="목록으로">←</button><button type="button" class="vlp-list-toggle" aria-label="목록 접기" aria-expanded="true" hidden></button><b class="vlp-case-title"></b><button type="button" class="btn btn-sm vlp-chat-open-btn vlp-case-chat" aria-label="대화하기">💬 채팅<span class="vlp-chat-badge" hidden></span></button></header>' +
       '<div class="vlp-case-hero"><div class="vlp-case-hl"><span class="vlp-case-state"></span><em class="vlp-case-sm"></em><span class="vlp-case-aside"></span><button type="button" class="vlp-case-stp" aria-label="단계 설명" aria-expanded="false">▾</button></div><div class="vlp-case-graph"></div><p class="vlp-case-next"></p><ul class="vlp-step-desc" hidden></ul></div>' +
       '<div class="vlp-tabs" role="tablist"></div></div><div class="vlp-case-body" role="tabpanel" tabindex="-1"></div><div class="vlp-case-act" hidden></div></section>');
-    root.dataset.contractId = c.contractId;
+    root.dataset.contractId = c.contractId; root.dataset.role = o.role || '';
     root.querySelector('.vlp-case-title').textContent = (c.vehicleModel || '차종 미입력') + (o.titleSuffix ? ' · ' + o.titleSuffix : '');
     // 태블릿·PC의 목록|상세 2단 화면에서 왼쪽 목록을 접고 펼친다(카마스터·시공사·관리자). 접힘 여부는 이 탭 세션에 기억한다.
     (function () {
@@ -143,7 +143,7 @@
       setTimeout(() => { if (root.isConnected && !document.querySelector('.vlp-sheet') && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) primaryBtn.click(); }, 0);
     }
     // PC 와이드(≥1440): 대화 패널을 건과 함께 항상 보이게 한다(2.14). 사용자가 닫은 뒤 같은 건의 새로고침 때는 다시 열지 않는다.
-    if (o.onChat && !o.noAutoChat && g.matchMedia && g.matchMedia('(min-width: 1440px)').matches && lastAutoChat !== c.contractId) {
+    if (o.onChat && !o.noAutoChat && o.role !== 'admin' && /* 관리자 대화 열람은 직접 눌렀을 때만 연다(정보보호) */ g.matchMedia && g.matchMedia('(min-width: 1440px)').matches && lastAutoChat !== c.contractId) {
       lastAutoChat = c.contractId;
       setTimeout(() => { if (root.isConnected && !(V.chat && V.chat.isOpenFor && V.chat.isOpenFor(c.contractId))) o.onChat(null); }, 0);
     }
@@ -151,7 +151,8 @@
     const hero = root.querySelector('.vlp-case-hero');
     // 태블릿·PC 2단에서는 상세 칸이 자기 스크롤을 가지므로(.vlp-app-detail) 그 스크롤도 함께 본다
     let pane = null;
-    const onScroll = () => { const y = Math.max(g.scrollY || document.documentElement.scrollTop || 0, pane ? pane.scrollTop : 0); if (y > 48) hero.classList.add('c'); else if (y < 8) hero.classList.remove('c'); }; // 압축하면 문서가 짧아져 스크롤이 줄어드는 경우가 있어, 되돌리는 기준을 낮춰 깜박임을 막는다
+    const wideMq = g.matchMedia ? g.matchMedia('(min-width: 768px)') : null; // 태블릿·PC는 공간이 충분하고, 스크롤로 내용이 바뀌면 어색하므로 상태 요약을 줄이지 않는다(폰에서만)
+    const onScroll = () => { if (wideMq && wideMq.matches) { hero.classList.remove('c'); return; } const y = Math.max(g.scrollY || document.documentElement.scrollTop || 0, pane ? pane.scrollTop : 0); if (y > 48) hero.classList.add('c'); else if (y < 8) hero.classList.remove('c'); }; // 압축하면 문서가 짧아져 스크롤이 줄어드는 경우가 있어, 되돌리는 기준을 낮춰 깜박임을 막는다
     g.addEventListener('scroll', onScroll, { passive: true });
     setTimeout(() => { pane = root.closest && root.closest('.vlp-app-detail'); if (pane) pane.addEventListener('scroll', onScroll, { passive: true }); }, 0);
     root.__off = () => { g.removeEventListener('scroll', onScroll); if (pane) pane.removeEventListener('scroll', onScroll); };
@@ -324,6 +325,30 @@
     return hintCard('최근 이벤트', list.map((e) => hm(e.observedAt) + ' ' + (e.text || e.type)).join(' · '));
   }
 
-  V.caseView = { processGuide, detail, listRow, progressText, stepIdxOf, route, chatPreview, fieldList, locationTab, constructionTab, historyTab, card, summaryCard, noteCard, recentEvents, hasConstruction, deliveryInfoCard, constructionCard, setTab: (id, tab) => { tabMem[id] = tab; } };
+  // ---- 관리자 전용 카드: 운영 메모·처리 기록 (고객·시공사 화면에는 쓰지 않는다) ----
+  function adminStamp(t) { const d = new Date(t), p = (n) => String(n).padStart(2, '0'); return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  function adminNotesCard(caseId) {
+    const root = el('<div class="vlp-cd vlp-admin-notes"><h4>운영 메모</h4><div class="hint">관리자끼리만 보는 메모예요. 고객·시공사·카마스터에게는 보이지 않습니다.</div><div class="vlp-an-form"><textarea rows="2" maxlength="500" placeholder="인수인계·확인 내용을 남겨 두세요 (최대 500자)" aria-label="운영 메모 입력"></textarea><button type="button" class="btn btn-sm btn-primary vlp-an-add" disabled>메모 추가</button></div><div class="vlp-an-list"></div></div>');
+    const ta = root.querySelector('textarea'), add = root.querySelector('.vlp-an-add'), list = root.querySelector('.vlp-an-list');
+    function paint() {
+      list.innerHTML = ''; const notes = window.Store ? Store.getAdminNotes(caseId) : [];
+      if (!notes.length) list.appendChild(el('<div class="hint vlp-an-empty">아직 메모가 없어요.</div>'));
+      notes.forEach((n) => { const r = el('<div class="vlp-an-row"><div class="vlp-an-meta hint"></div><div class="vlp-an-text"></div></div>'); r.querySelector('.vlp-an-meta').textContent = adminStamp(n.at) + ' · ' + n.by; r.querySelector('.vlp-an-text').textContent = n.text; list.appendChild(r); });
+    }
+    ta.addEventListener('input', () => { add.disabled = !ta.value.trim(); });
+    add.addEventListener('click', () => { if (!Store.addAdminNote(caseId, ta.value)) return; ta.value = ''; add.disabled = true; paint(); const lg = root.parentElement && root.parentElement.querySelector('.vlp-admin-log'); if (lg && lg._repaint) lg._repaint(); });
+    paint(); return root;
+  }
+  function adminLogCard(caseId) {
+    const root = el('<div class="vlp-cd vlp-admin-log"><h4>관리자 처리 기록</h4><div class="hint">관리자가 한 일(대리 처리·개입·메모·채팅 열람 요청)만 모아 봅니다.</div><div class="vlp-an-list"></div></div>');
+    const list = root.querySelector('.vlp-an-list');
+    root._repaint = function () {
+      list.innerHTML = ''; const rows = window.Store ? Store.getAdminTimeline(caseId) : [];
+      if (!rows.length) list.appendChild(el('<div class="hint vlp-an-empty">아직 관리자 처리 기록이 없어요.</div>'));
+      rows.forEach((r) => { const e = el('<div class="vlp-an-row"><div class="vlp-an-meta hint"></div><div class="vlp-an-text"></div></div>'); e.querySelector('.vlp-an-meta').textContent = adminStamp(r.at) + ' · ' + r.by; e.querySelector('.vlp-an-text').textContent = r.text; list.appendChild(e); });
+    };
+    root._repaint(); return root;
+  }
+  V.caseView = { listClosed: () => { try { return sessionStorage.getItem('vlp_list_closed') === '1'; } catch (e) { return false; } }, resetAutoChat: () => { lastAutoChat = null; }, adminNotesCard, adminLogCard, processGuide, detail, listRow, progressText, stepIdxOf, route, chatPreview, fieldList, locationTab, constructionTab, historyTab, card, summaryCard, noteCard, recentEvents, hasConstruction, deliveryInfoCard, constructionCard, setTab: (id, tab) => { tabMem[id] = tab; } };
   if (typeof module !== 'undefined' && module.exports) module.exports = V.caseView;
 })(typeof window !== 'undefined' ? window : globalThis);

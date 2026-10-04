@@ -863,9 +863,68 @@ const Store = {
     return this._updateCare(id, { chatRead: Object.assign({}, c.chatRead, { [role]: last.createdAt }) }, null);
   },
   /** 관리자 대화 열람 기록(누가·언제·사유). 같은 사유로 창 안에서는 다시 묻지 않는다. */
-  recordCareChatView(id, adminName, reasonCode) {
+  // ---- 관리자 운영 메모·처리 기록 (관리자 전용. 고객·시공사·카마스터 화면에는 나오지 않는다. 인도·케어 건 공통, 키는 건 번호) ----
+  currentAdminName() { try { const a = this.getAdmin(sessionStorage.getItem('v6_admin_id')); return a ? a.name : '관리자'; } catch (e) { return '관리자'; } },
+  getAdminNotes(caseId) { return (((this.load().adminNotes || {})[caseId]) || []).slice().sort((a, b) => b.at - a.at); },
+  addAdminNote(caseId, text, by) {
+    const t = String(text || '').trim(); if (!caseId || !t || t.length > 500) return null;
+    const d = this.load(); d.adminNotes = d.adminNotes || {}; d.adminActions = d.adminActions || [];
+    const at = Date.now(), who = by || this.currentAdminName(), n = { id: 'an-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at, by: who, text: t };
+    (d.adminNotes[caseId] = d.adminNotes[caseId] || []).push(n);
+    d.adminActions.push({ id: 'aa-' + at.toString(36) + Math.random().toString(36).slice(2, 5), caseId, at, by: who, kind: 'note', text: '운영 메모 작성' });
+    this.save(d); return n;
+  },
+  logAdminAction(caseId, kind, text, by) {
+    if (!caseId || !text) return null;
+    const d = this.load(); d.adminActions = d.adminActions || []; const at = Date.now();
+    const a = { id: 'aa-' + at.toString(36) + Math.random().toString(36).slice(2, 5), caseId, at, by: by || this.currentAdminName(), kind: kind || 'action', text: String(text).slice(0, 200) };
+    d.adminActions.push(a); this.save(d); return a;
+  },
+  getRecentAdminActions(n) { return ((this.load().adminActions || []).slice().sort((a, b) => b.at - a.at)).slice(0, n || 5); },
+  /** 관리자가 한 일만 모아 최신순으로: 대리 처리·개입·메모 + 채팅 열람 요청/예외 열람 + 케어 채팅 열람 기록 */
+  getAdminTimeline(caseId) {
+    const d = this.load(), out = (d.adminActions || []).filter((a) => a.caseId === caseId).map((a) => ({ at: a.at, by: a.by, kind: a.kind, text: a.text }));
+    const cfgL = (k) => { try { return (window.VLP && VLP.config && VLP.config.get(k)) || {}; } catch (e) { return {}; } };
+    const rl = Object.assign({}, cfgL('sensitiveViewReasonLabels'), cfgL('chatExceptionReasonLabels'));
+    const SL = { pending: '응답 대기', granted: '승인됨', ended: '열람 시간 종료', denied: '거부됨', expired: '무응답 기한 지남' };
+    this.getChatConsents(caseId).forEach((c) => out.push({ at: c.createdAt, by: c.by, kind: 'chat', text: c.exception ? '예외 사유로 채팅 열람 · ' + (rl[c.reasonCode] || c.reasonCode) : '채팅 열람 동의 요청 · ' + (rl[c.reasonCode] || c.reasonCode) + ' · ' + (SL[c.state] || c.state) }));
+    const co = (d.careOrders || []).find((c) => c.id === caseId);
+    if (co) (co.chatViews || []).forEach((v) => out.push({ at: v.at, by: v.by, kind: 'chat', text: '채팅 열람 · ' + (rl[v.reason] || v.reason) }));
+    return out.sort((a, b) => b.at - a.at);
+  },
+  recordCareChatView(id, adminName, reasonCode, note) {
     const c = this.getCareOrder(id); if (!c) return null;
-    return this._updateCare(id, { chatViews: (c.chatViews || []).concat([{ at: Date.now(), by: adminName || '관리자', reason: reasonCode }]) }, null);
+    return this._updateCare(id, { chatViews: (c.chatViews || []).concat([{ at: Date.now(), by: adminName || '관리자', reason: reasonCode, note: note ? String(note).trim().slice(0, 200) : undefined }]) }, null);
+  },
+  // ---- 대화 열람 동의 (운영자 요청 → 고객·상대(카마스터/시공사) 양쪽 승인 → 열람) ----
+  // 상태: pending(응답 대기) / granted(승인됨·열람 가능 시간 안) / ended(열람 가능 시간 끝) / denied(거부) / expired(무응답 기한 지남).
+  // 동의 없이 열람하는 예외(법적 요청·긴급 안전)는 슈퍼바이저만, exception:true 로 따로 남긴다.
+  _consentCfg(k, d) { try { const v = window.VLP && VLP.config && VLP.config.get(k); return v == null ? d : v; } catch (e) { return d; } },
+  _consentState(c) {
+    const now = Date.now(), win = this._consentCfg('sensitiveViewWindowMinutes', 30) * 60000, exp = this._consentCfg('chatConsentExpireHours', 24) * 3600000;
+    if (c.exception || c.status === 'approved') return now - c.approvedAt <= win ? 'granted' : 'ended';
+    if (c.status === 'denied') return 'denied';
+    return now - c.createdAt > exp ? 'expired' : 'pending';
+  },
+  getChatConsents(chatId) { return (this.load().chatConsents || []).filter(c => c.chatId === chatId).sort((a, b) => b.createdAt - a.createdAt).map(c => Object.assign({}, c, { state: this._consentState(c) })); },
+  latestChatConsent(chatId) { return this.getChatConsents(chatId)[0] || null; },
+  chatViewGrant(chatId) { return this.getChatConsents(chatId).find(c => c.state === 'granted') || null; },
+  requestChatConsent(chatId, by, reasonCode, note) {
+    const open = this.getChatConsents(chatId).find(c => c.state === 'pending'); if (open) return open;
+    const d = this.load(); d.chatConsents = d.chatConsents || [];
+    const c = { id: 'cc-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), chatId, by: by || '관리자', reasonCode, note: note ? String(note).trim().slice(0, 200) : undefined, createdAt: Date.now(), responses: { customer: null, other: null }, status: 'pending' };
+    d.chatConsents.push(c); this.save(d); return Object.assign({}, c, { state: 'pending' });
+  },
+  respondChatConsent(id, party, approve) {
+    const d = this.load(); const c = (d.chatConsents || []).find(x => x.id === id); if (!c || this._consentState(c) !== 'pending' || !(party in c.responses)) return null;
+    c.responses[party] = !!approve;
+    if (!approve) { c.status = 'denied'; c.deniedBy = party; c.deniedAt = Date.now(); } else if (c.responses.customer === true && c.responses.other === true) { c.status = 'approved'; c.approvedAt = Date.now(); }
+    this.save(d); return Object.assign({}, c, { state: this._consentState(c) });
+  },
+  exceptionChatView(chatId, by, reasonCode, note) {
+    const d = this.load(); d.chatConsents = d.chatConsents || [];
+    const c = { id: 'cc-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), chatId, by: by || '슈퍼바이저', reasonCode, note: note ? String(note).trim().slice(0, 200) : undefined, createdAt: Date.now(), approvedAt: Date.now(), exception: true, responses: { customer: null, other: null }, status: 'approved' };
+    d.chatConsents.push(c); this.save(d); return Object.assign({}, c, { state: 'granted' });
   },
   _updateCare(id, patch, logMsg) {
     const data = this.load();

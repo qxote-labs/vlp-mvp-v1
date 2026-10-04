@@ -752,12 +752,16 @@
       const b = r.body || {}, idn = r.identity;
       inEnum(b.viewType, ['CHAT_FULL', 'CONSULT_MEMO_FULL', 'CUSTOMER_PHONE_SHOWN', 'AUDIT_VIEW'], 'viewType');
       if (!isStr(b.contractId)) throw E.val('contractId가 필요합니다', { field: 'contractId' });
-      inEnum(b.reasonCode, cfg.get('sensitiveViewReasonCodes'), 'reasonCode');
+      inEnum(b.reasonCode, cfg.get('sensitiveViewReasonCodes').concat(cfg.get('chatExceptionReasonCodes') || []), 'reasonCode');
+      if (b.note != null && (typeof b.note !== 'string' || b.note.length > 200)) throw E.val('note는 200자 이하 문자열이어야 합니다', { field: 'note' });
+      if (b.reasonCode === 'OTHER' && !isStr(b.note)) throw E.val('기타 사유는 내용을 입력해야 합니다', { field: 'note' });
       const c = contractOf(b.contractId); if (!c || !canSeeContract(idn, c)) throw E.nf();
+      // 관리자의 대화 전문 열람은 당사자 동의(또는 슈퍼바이저 예외 기록)가 있어야 한다. 서버 구현 때도 서버가 강제해야 한다.
+      if (b.viewType === 'CHAT_FULL' && idn.role === 'admin' && typeof Store !== 'undefined' && Store.chatViewGrant && !Store.chatViewGrant(c.contractId)) throw new Err(403, 'VLP-AUTH-403', '당사자 동의가 필요합니다');
       const t = nowFn(), win = cfg.get('sensitiveViewWindowMinutes') * MIN;
       const prev = S.sensitiveViews.find(v => v.userId === idn.userId && v.contractId === c.contractId && v.viewType === b.viewType && t - v.lastAt <= win);
       if (prev) { prev.lastAt = t; prev.count += 1; return { status: 201, body: { recorded: true, merged: true } }; }
-      S.sensitiveViews.push({ id: newId(), userId: idn.userId, role: idn.role, contractId: c.contractId, viewType: b.viewType, reasonCode: b.reasonCode, firstAt: t, lastAt: t, count: 1 });
+      S.sensitiveViews.push({ id: newId(), userId: idn.userId, role: idn.role, contractId: c.contractId, viewType: b.viewType, reasonCode: b.reasonCode, note: b.note ? b.note.trim() : undefined, firstAt: t, lastAt: t, count: 1 });
       return { status: 201, body: { recorded: true, merged: false } };
     };
 

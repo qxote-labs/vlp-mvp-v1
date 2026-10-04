@@ -15,20 +15,15 @@
 </head>
 <body>
 <div class="app">
-  <div class="navbar">
-    <div class="brand">&#128101; 커뮤니티관리자 <span>화면</span></div>
-    <div class="spacer"></div>
-    <span style="font-size:12px;color:#3b7a16;"><span class="sync-dot"></span>실시간 동기화 중</span>
-    <button onclick="Store.reset()">전체 데이터 초기화</button>
-    <span id="header-right"></span>
-  </div>
+  <div id="vlp-rolebar" data-role="admin" class="vlp-rolebar"></div>
   <div class="frame">
     <div class="body" id="body-root"></div>
   </div>
-  <div class="footer-note">이 창은 "커뮤니티관리자" 역할입니다. 배정된 그룹 범위 안에서 신차인도/케어 서비스의 일상적인 승인·모니터링·대리 처리를 담당합니다.</div>
 </div>
+<script>window.ADMIN_ROLE_NOTE = '이 창은 \"커뮤니티관리자\" 역할입니다. 배정된 그룹 범위 안에서 신차인도/케어 서비스의 일상적인 승인·모니터링·대리 처리를 담당합니다.';</script>
 <script>window.ADMIN_MODE = 'community';</script>
 <script src="vlp-config.js"></script>
+<script src="vlp-rolebar.js"></script>
 <script src="vlp-ops.js"></script>
 <script src="status-map.js"></script>
 <script src="api-facade.js"></script>
@@ -44,6 +39,7 @@
 <script src="admin-conversations.js"></script>
 <script src="vlp-case.js"></script>
 <script src="admin-console.js"></script>
+<script src="admin-users.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>
