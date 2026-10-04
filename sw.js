@@ -7,7 +7,7 @@
  *     - POST 등 명령은 절대 캐시·재생하지 않는다. 오프라인 쓰기는 IndexedDB 큐(PWA-18)가 맡는다.
  *     - 로그아웃 시 화면이 {type:'CLEAR_API_CACHE'}를 보내 조회 캐시를 비운다.
  */
-const VERSION = 'v97';
+const VERSION = 'v104';
 const SHELL = 'vlp-shell-' + VERSION;
 const API = 'vlp-api-' + VERSION;
 const PRECACHE = [

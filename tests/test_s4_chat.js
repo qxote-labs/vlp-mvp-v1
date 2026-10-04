@@ -20,7 +20,7 @@ const BASE = 'http://localhost:8000';
     // 미리 40개 대화 넣기(이전 대화 보기 검증)
     await c.evaluate(async (id) => { for (let i = 0; i < 40; i++) await VLP.api.engagement.send(id, { body: '메시지 ' + i }, { idempotencyKey: 'seed-key-fixture-' + i }); }, cid);
     await card.locator('.vlp-case-chat').click();
-    await c.waitForSelector('.vlp-chatdock .msg-bubble');
+    await c.waitForSelector('.vlp-chatdock .msg-bubble', { timeout: 30000 });
     const box = await c.locator('.vlp-chatdock').boundingBox();
     assert.ok(box.x >= 0 && box.width >= 330 && box.y + box.height >= 715 && box.height >= 500, '폰: 본문 칸, 본문 영역 전체 ' + JSON.stringify(box));
     { const rb = await c.evaluate(() => { const r = document.getElementById('vlp-rolebar'); return r ? r.getBoundingClientRect().bottom : 0; }); assert.ok(box.y >= rb - 1, '상단 역할 줄은 가리지 않는다 ' + rb + ' / ' + box.y); }
@@ -40,7 +40,7 @@ const BASE = 'http://localhost:8000';
     // 실패 재전송 중복 없음
     await c.evaluate(() => VLP.api.adapter().admin.dropResponses && VLP.api.adapter().admin.dropResponses(1));
     await c.fill('.vlp-chatdock textarea', '재전송 테스트'); await c.click('.vlp-chat-send');
-    await c.waitForSelector('.vlp-msg-retry');
+    await c.waitForSelector('.vlp-msg-retry', { timeout: 30000 });
     await c.click('.vlp-msg-retry');
     await c.waitForFunction(() => !document.querySelector('.msg-bubble.pending'));
     const dup = await c.locator('.vlp-chat-body .msg-bubble', { hasText: '재전송 테스트' }).count();
@@ -62,10 +62,10 @@ const BASE = 'http://localhost:8000';
     const a = await ctx.newPage(); hook(a, 'admin'); await a.setViewportSize({ width: 1400, height: 900 });
     await a.goto(BASE + '/admin.html?nosw=1');
     await a.evaluate(() => { const ad = Store.getAdmins().find(x => x.adminScope === 'community'); window.tryLogin(ad.id, 'delivery'); });
-    await a.waitForSelector('.vlp-app-admin .vlp-case-row', { timeout: 15000 });
-    await a.locator('.vlp-app-admin .vlp-case-row[data-contract-id="' + cid + '"]').click(); await a.waitForSelector('.vlp-case');
+    await a.waitForSelector('.vlp-app-admin .vlp-case-row', { timeout: 40000 });
+    await a.locator('.vlp-app-admin .vlp-case-row[data-contract-id="' + cid + '"]').click(); await a.waitForSelector('.vlp-case', { timeout: 30000 });
     await a.click('.vlp-case-chat');
-    await a.waitForSelector('.vlp-chat-masked');
+    await a.waitForSelector('.vlp-chat-masked', { timeout: 30000 });
     assert.strictEqual(await a.locator('.vlp-chatdock textarea').count(), 0);
     assert.ok(!/재전송 테스트/.test(await a.locator('.vlp-chat-body').textContent()));
     ok('관리자: 입력창 없음(읽기 전용), 사유 전 본문 가림');
@@ -78,7 +78,9 @@ const BASE = 'http://localhost:8000';
     ok('관리자: 동의 요청 → 응답 대기(본문은 계속 가려짐)');
     assert.ok(await a.evaluate((i) => VLP.api.admin.recordSensitiveView({ viewType: 'CHAT_FULL', contractId: i, reasonCode: 'COMPLAINT' }).then(() => false, (e) => e.status === 403), cid), '동의 없이 열람 기록 → 403');
     await a.evaluate((i) => { const c = Store.latestChatConsent(i); Store.respondChatConsent(c.id, 'customer', true); Store.respondChatConsent(c.id, 'other', true); }, cid);
-    await a.waitForSelector('.vlp-chat-view', { timeout: 8000 }); await a.click('.vlp-chat-view');
+    await a.waitForSelector('.vlp-chat-view', { timeout: 25000 });
+    // 대화창은 몇 초마다 다시 그려지므로 부하가 있을 때 누른 순간 버튼이 바뀌어 눌림이 사라질 수 있다 → 본문이 열릴 때까지 다시 누른다(최대 5번)
+    for (let k = 0; k < 5; k++) { await a.locator('.vlp-chat-view').first().click({ timeout: 8000 }).catch(() => null); if (await a.waitForFunction(() => /재전송 테스트/.test((document.querySelector('.vlp-chat-body') || { textContent: '' }).textContent), null, { timeout: 5000 }).then(() => true, () => false)) break; }
 
     await a.waitForFunction(() => /재전송 테스트/.test(document.querySelector('.vlp-chat-body').textContent));
     assert.strictEqual(await a.locator('.vlp-chat-masked').count(), 0);

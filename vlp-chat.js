@@ -49,7 +49,7 @@
       const t = Math.max(Math.round(r ? r.top : rbBottom), 0), b = r ? Math.min(Math.round(r.bottom), vh - gap) : vh, cw = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--chat-w'), 10) || 360;
       if (b - t < 320) return;
       dock.classList.add('inbody', 'wide');
-      dock.style.top = t + 'px'; dock.style.height = (b - t) + 'px'; dock.style.width = cw + 'px'; dock.style.left = (cwid - cw - gap) + 'px';
+      dock.style.top = t + 'px'; dock.style.height = (b - t) + 'px'; dock.style.width = cw + 'px'; dock.style.left = (r ? Math.min(cwid - cw - gap, Math.round(r.right) + 16) : cwid - cw - gap) + 'px'; // 본문 틀이 상한에 걸려 좁으면 대화창을 오른쪽 끝에 두지 않고 틀 바로 옆(간격 16)에 붙인다 — 본문+대화창 묶음이 가운데 오게(본문 틀의 가운데 정렬 위치는 body 오른쪽 여백이 이미 같은 값)
       return;
     }
     if (!app || !app.parentElement) return;

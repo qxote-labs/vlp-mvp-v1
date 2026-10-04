@@ -117,7 +117,7 @@
     try { run(); } finally { watch(); }
   };
   const run = () => {
-    const app = document.querySelector('.vlp-app-karmaster.has-case.lay-top[data-tab=clients], .vlp-app-shop.has-case.lay-top[data-tab=clients], .vlp-app-admin.lay-top[data-tab=cases], .vlp-app-admin.lay-top[data-tab=care]');
+    const app = document.querySelector('.vlp-app-karmaster.has-case.lay-top[data-tab=clients], .vlp-app-shop.has-case.lay-top[data-tab=clients], .vlp-app-admin.lay-top[data-tab=cases], .vlp-app-admin.lay-top[data-tab=care], .vlp-app-karmaster.lay-top[data-tab=today]:not(.has-case), .vlp-app-shop.lay-top[data-tab=today]:not(.has-case), .vlp-app-karmaster.lay-top[data-tab=me], .vlp-app-shop.lay-top[data-tab=me], .vlp-app-customer.has-case[data-tab=cars], .vlp-app-customer.has-case[data-tab=care]');
     const all = document.querySelectorAll('.vlp-app.fit-panes');
     all.forEach((a) => { if (a !== app) { a.classList.remove('fit-panes'); const l = a.querySelector('.vlp-app-list'); if (l) l.classList.remove('more-below'); } });
     if (!app) { listEl = null; return; }
@@ -126,7 +126,7 @@
     const ok = g.innerWidth >= MIN_W && g.innerHeight >= MIN_H && list && (!closed || det0);
     if (!ok) { app.classList.remove('fit-panes'); if (list) list.classList.remove('more-below'); listEl = null; return; }
     const was = app.classList.contains('fit-panes'); if (!was) app.classList.add('fit-panes'); // 이미 켜져 있으면 건드리지 않는다(껐다 켜면 목록 스크롤 위치가 초기화됨)
-    const pr = closed ? det0 : list; // 잴 기준 칸(목록이 접히면 상세)
+    const pr = (closed || app.classList.contains('vlp-app-customer')) ? det0 : list; // 고객 화면은 목록이 칩 줄뿐이라 스크롤은 상세 칸이 맡는다 // 잴 기준 칸(목록이 접히면 상세)
     const top = Math.round(pr.getBoundingClientRect().top + (g.scrollY || 0)); // 칸이 시작하는 페이지 기준 위치
     // 칸 아래에 남는 틀 안쪽 여백·틀 바깥 여백. 목록이 짧아 페이지가 화면보다 낮으면 scrollHeight가 화면 높이로 고정돼 아래 여백이 부풀려지므로, 칸을 잠깐 아주 크게 만들어 잰다.
     const keepH = pr.style.height, keepT = pr.scrollTop, det = det0, keepDT = det ? det.scrollTop : 0; pr.style.height = '9999px';

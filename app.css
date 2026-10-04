@@ -1565,3 +1565,133 @@ table td, table th { vertical-align: middle; }
   .vlp-app:not(.vlp-app-customer):not(.fit-panes) .vlp-app-list { position: static; max-height: none; overflow: visible; }
   .vlp-app:not(.vlp-app-customer):not(.fit-panes).has-case .vlp-app-detail { position: static; max-height: none; overflow: visible; }
 }
+
+/* 태블릿·PC 관리자 메뉴: 들어가는 만큼만 보이고 나머지는 로그아웃 앞 [⋯ n] 목록으로(가로 스크롤 막대 없음). 폰(<768px)은 위 드롭다운 */
+.vlp-adm-ovf, .vlp-adm-ovp { display: none; }
+@media (min-width: 768px) {
+  .vlp-adm-nav { overflow: visible; position: relative; flex-wrap: nowrap; }
+  .vlp-adm-nav .ovf-hide { display: none; }
+  .vlp-adm-ovf { display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 44px; padding: 0 12px; margin-left: auto; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; color: inherit; }
+  .vlp-adm-ovf[hidden] { display: none; }
+  .vlp-adm-ovf .vlp-adm-ico { font-size: 20px; line-height: 1; }
+  .vlp-adm-ovf:hover, .vlp-adm-ovf:focus-visible, .vlp-adm-ovf[aria-expanded=true] { background: var(--c-brand-soft, #e4eef2); }
+  .vlp-adm-nav.has-ovf .vlp-adm-nav-btn[data-menu=logout] { margin-left: 0; }
+  .vlp-adm-ovp { display: flex; flex-direction: column; position: absolute; right: 8px; top: calc(100% + 4px); z-index: 30; min-width: 220px; background: var(--c-surface, #fff); border: 1px solid var(--c-line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 6px; }
+  .vlp-adm-ovp[hidden] { display: none; }
+  .vlp-adm-ovp .vlp-adm-mi { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .vlp-adm-ovp .vlp-adm-mi .mt { flex: 1; } .vlp-adm-ovp .vlp-adm-mi .vlp-adm-ico { font-size: 18px; width: 24px; text-align: center; }
+  .vlp-adm-ovp .vlp-adm-mi:hover, .vlp-adm-ovp .vlp-adm-mi:focus-visible { background: #f1f1f4; outline: none; }
+  .vlp-adm-ovp .vlp-adm-mi:focus-visible { box-shadow: inset 0 0 0 2px #3d3d46; }
+  .vlp-adm-ovp .vlp-adm-dot { color: #b4362e; font-weight: 700; }
+}
+
+/* 세로 스크롤 막대가 생기고 사라질 때 화면 가로 폭이 15px 움직여 깜박이던 것 방지: 막대 자리를 항상 비워 둔다.
+   메뉴 줄은 첫 그림에서 가로로 넘쳐도 페이지 폭을 늘리지 않게 자른다. */
+html { scrollbar-gutter: stable; }
+@media (min-width: 768px) { .vlp-adm-nav { overflow-x: clip; } }
+
+/* v100 와이드 화면(2K 등): 관리자·카마스터·샵은 틀 폭 상한을 1920으로 넓혀 화면에 맞춰 펼친다. 고객 화면은 모바일 설계라 1180 상한 유지.
+   카마스터 "오늘"(행이 길게 늘어지는 화면)만 본문 1500 상한. 되돌리려면 이 블록만 지운다. */
+@media (min-width: 1280px) {
+  .app:not(:has(.vlp-app-customer)) { max-width: 1920px; }
+  .vlp-app-karmaster[data-tab=today]:not(.has-case) .vlp-app-list { max-width: 1500px; margin-left: auto; margin-right: auto; width: 100%; }
+}
+
+/* v100 고객 내 차량·신차케어: 창 높이에 맞춘 칸(상세가 안에서 스크롤). vlp-boot.js 가 .fit-panes 를 단다. */
+.vlp-app.fit-panes.vlp-app-customer { padding-bottom: 0; }
+.vlp-app.fit-panes.vlp-app-customer .vlp-app-detail { height: calc(100vh - var(--pane-top, 232px) - var(--pane-below, 57px)); height: calc(100dvh - var(--pane-top, 232px) - var(--pane-below, 57px)); overflow: auto; overscroll-behavior: contain; }
+/* v100 관리자 상단 메뉴와 그 아래 제목 사이 여백: 카마스터·시공사 화면과 같은 16px */
+@media (min-width: 768px) { .vlp-adm-nav { margin-bottom: 16px; } }
+/* v101 단일 목록 탭(오늘·내 정보)을 칸 모드로 맞출 때 빈 상세 칸이 위에 떠서 클릭을 가로채지 않게 숨긴다 */
+.vlp-app.fit-panes[data-tab=today]:not(.has-case) .vlp-app-detail, .vlp-app.fit-panes[data-tab=me] .vlp-app-detail { display: none; }
+
+/* ===== v102 제목 영역 규격(모든 역할·메뉴 공통) — 값은 아래 변수 한 곳에서만 바꾼다 =====
+   상단 메뉴 → 제목 줄 10px, 제목 줄 높이 36px(제목은 줄 가운데 → 제목 윗선이 메뉴 아래 약 19px = 화면 y 154), 제목 → 첫 내용 12px.
+   화면마다 따로 잡던 여백을 이 규격이 덮어쓴다. 어긋나면 test_layout_consistency 가 알려 준다. */
+:root { --t-gap-top: 10px; --t-head-h: 36px; --t-gap-bottom: 12px; }
+@media (min-width: 768px) {
+  .vlp-adm-nav { top: auto; margin-bottom: var(--t-gap-top); }                       /* 관리자 메뉴가 12px 내려가 있던 원인(relative + top:12px) 제거 */
+  .vlp-app.lay-top { row-gap: 0; }                                                    /* 칸 사이 여백은 아래 규칙이 직접 준다 */
+  .vlp-app.lay-top .vlp-bottomnav, .vlp-app.lay-top.has-case .vlp-bottomnav { margin-bottom: var(--t-gap-top); }
+  .vlp-app.lay-top .vlp-app-strip:empty { display: none; }
+  .vlp-app.lay-top .vlp-app-strip:not(:empty) { margin-bottom: 16px; }
+  .vlp-app .vlp-pane-head, .vlp-adm .vlp-pane-head, .vlp-adm-main .vlp-pane-head { min-height: var(--t-head-h); margin: 0 0 var(--t-gap-bottom); align-items: center; }
+  .vlp-app.lay-top .vlp-app-strip .vlp-pane-head { margin: 0 0 var(--t-gap-bottom); }
+  .vlp-usr .vlp-pane-head { align-items: center; margin-bottom: var(--t-gap-bottom); }
+}
+@media (min-width: 768px) {
+  .vlp-app[data-tab=msgs] .vlp-app-list > .vlp-pane-head { margin-bottom: max(0px, calc(var(--t-gap-bottom) - 12px)); }   /* 이 목록은 칸 사이 12px 간격이 따로 있어 그만큼 뺀다 */
+  .vlp-app[data-tab=me] .vlp-app-list.vlp-app-list.vlp-app-list.vlp-app-list { margin-left: 0; margin-right: 0; } /* "내 정보"도 다른 화면처럼 틀 왼쪽 끝에서 시작 */
+}
+/* 고객(상단 메뉴형): 칸 사이 기본 간격 16px + 8px = 24px, 제목 줄·아래 간격도 같은 규격 */
+@media (min-width: 768px) {
+  .vlp-app.vlp-app-customer.vlp-app-customer[data-sw=pill] .vlp-bottomnav { margin-bottom: calc(var(--t-gap-top) - 16px); }
+  .vlp-app.vlp-app-customer.vlp-app-customer[data-sw=pill] .vlp-pane-head { min-height: var(--t-head-h); margin: 0 0 var(--t-gap-bottom); align-items: center; }
+}
+@media (min-width: 768px) { .vlp-app.vlp-app-customer.vlp-app-customer[data-sw=pill][data-tab=msgs] .vlp-app-list > .vlp-pane-head { margin-bottom: max(0px, calc(var(--t-gap-bottom) - 12px)); } }
+@media (min-width: 768px) { .vlp-adm { row-gap: 0; } }   /* 관리자 메뉴 줄과 본문 사이는 --t-gap-top 만 쓴다 */
+/* 사용자/그룹: 탭이 제목 줄보다 높아도 제목은 다른 화면과 같은 높이에 둔다(제목 칸을 줄 높이로 고정, 탭은 아래쪽 정렬) */
+@media (min-width: 768px) {
+  .vlp-usr .vlp-pane-head { align-items: flex-start; }
+  .vlp-usr .vlp-pane-head h2 { min-height: var(--t-head-h); display: flex; align-items: center; }
+  .vlp-usr .vlp-pane-head .vlp-usr-tabs { align-self: flex-end; }
+}
+
+/* v102 내 정보 등 카드가 연달아 놓이는 목록: 카드 사이 간격 10px(붙어 보이던 문제) */
+.vlp-app-list > .vlp-cd + .vlp-cd, .vlp-app-list > .vlp-cd + .btn, .vlp-app-list > .vlp-cd + .vlp-section-title { margin-top: 10px; }
+
+/* v102 관리자 홈 "오늘 처리할 건": 제목 줄 규격(높이·글자 크기)과 카드 간격을 다른 화면과 맞춘다 */
+.vlp-adm-home { gap: var(--t-gap-bottom); }
+.vlp-adm-home .vlp-home-sum { min-height: var(--t-head-h); align-items: center; }
+.vlp-adm-home .vlp-home-sum b { font-size: 16px; }
+.vlp-home-rows { gap: 10px; }
+
+/* v102 모바일(768 미만): 제목 줄 높이 44px(터치 버튼 높이와 같음 → 버튼이 있어도 제목 높이 동일), 제목→첫 내용 12px */
+@media (max-width: 767.98px) {
+  :root { --t-head-m: 44px; }
+  .vlp-app .vlp-pane-head, .vlp-adm .vlp-pane-head, .vlp-adm-main .vlp-pane-head { min-height: var(--t-head-m); margin: 0 0 var(--t-gap-bottom); align-items: center; }
+  .vlp-adm-home .vlp-home-sum { min-height: var(--t-head-m); }
+  .vlp-app.lay-top .vlp-app-strip .vlp-pane-head { margin: 0 0 var(--t-gap-bottom); }
+  .vlp-usr .vlp-pane-head { align-items: center; margin-bottom: var(--t-gap-bottom); }
+}
+
+/* ===== v104 디자인 토큰: 카드·행·칩·섹션 제목·간격을 한 곳(:root)에서 바꾼다 =====
+   제목 영역(--t-*)과 함께 이 블록의 값만 고치면 모든 화면(고객·카마스터·시공자·관리자)에 반영된다. */
+:root {
+  --k-card-pad: 10px 12px;      /* 카드·건 행·홈 행 안쪽 여백 */
+  --k-card-radius: 10px;        /* 카드·행 모서리 */
+  --k-card-gap: 10px;           /* 카드/행 사이 간격 */
+  --k-chip-h: 36px;             /* 칩 높이 */
+  --k-chip-fs: 13px;            /* 칩 글자 */
+  --k-chip-pad-x: 14px;         /* 칩 좌우 여백 */
+  --k-sec-fs: 14px;             /* 섹션 제목 글자 */
+  --k-sec-fw: 700;
+  --k-sec-mt: 12px;             /* 섹션 제목 위 */
+  --k-sec-mb: 6px;              /* 섹션 제목 아래 */
+  --k-badge-fs: 11px;           /* 행 안 상태 배지 */
+  --k-prog-fs: 12px;            /* 행 진행 문구 */
+  --k-prog-fw: 400;
+  --k-row-title-lh: 18px;       /* 행 제목 줄 높이 */
+  --k-sec-lh: 20px;             /* 섹션 제목 줄 높이 */
+}
+.vlp-cd, .vlp-case-row, .vlp-home-row { border-radius: var(--k-card-radius); padding: var(--k-card-pad); }
+.vlp-case-row { margin-bottom: var(--k-card-gap); }
+.vlp-home-rows { gap: var(--k-card-gap); }
+.vlp-app-list > .vlp-cd + .vlp-cd, .vlp-app-list > .vlp-cd + .btn, .vlp-app-list > .vlp-cd + .vlp-section-title { margin-top: var(--k-card-gap); }
+.vlp-chip, .vlp-app.lay-top .vlp-app-strip .vlp-chip { min-height: var(--k-chip-h); font-size: var(--k-chip-fs); padding-left: var(--k-chip-pad-x); padding-right: var(--k-chip-pad-x); }
+.vlp-section-title, .vlp-today-sec > .vlp-section-title, .vlp-app[data-tab=today] .vlp-today-sec > .vlp-section-title, .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-section-title { font-size: var(--k-sec-fs); font-weight: var(--k-sec-fw); color: var(--c-ink, #1c2430); }
+.vlp-section-title, .vlp-today-sec > .vlp-section-title, .vlp-app[data-tab=today] .vlp-today-sec > .vlp-section-title { margin-top: var(--k-sec-mt); margin-bottom: var(--k-sec-mb); }
+.vlp-row-badge, .vlp-row-badge .badge, .vlp-car-chip .vlp-row-badge, .vlp-app-customer .vlp-car-chip .vlp-row-badge, .vlp-app.vlp-app-customer[data-tab] .vlp-car-chip .vlp-row-badge { font-size: var(--k-badge-fs); }
+.vlp-row-prog, .vlp-case-row .vlp-row-prog { font-size: var(--k-prog-fs); font-weight: var(--k-prog-fw); }
+.vlp-case-row.urgent .vlp-row-prog { font-weight: 700; }
+.vlp-row-title { line-height: var(--k-row-title-lh); }
+.vlp-section-title, .vlp-today-sec > .vlp-section-title { line-height: var(--k-sec-lh); }
+.vlp-row-badge { display: inline-flex; align-items: center; min-height: 21px; }
+
+/* v104 업체 승인: 대기 카드를 폭에 맞춰 여러 열로(세로로 길게 쌓여 창 높이를 넘던 문제) */
+.vlp-shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--k-card-gap); align-items: start; }
+.vlp-shop-grid > .admin-controls { margin: 0; }
+
+.vlp-shops .empty-state { padding: 18px 0; }
+.vlp-shops .empty-state .big { font-size: 28px; margin-bottom: 4px; }
+.vlp-shops table td, .vlp-shops table th { vertical-align: middle; padding-top: 8px; padding-bottom: 8px; }

@@ -118,7 +118,7 @@
     // ---- 목록 ----
     function paintList(activeId) {
       listPane.innerHTML = '';
-      const h = el('<div class="vlp-pane-head"><h2>건 목록</h2></div>'); const inStrip = wide(); strip.hidden = !inStrip; strip.innerHTML = ''; // 상단 메뉴 + 상태 띠 구조(카마스터와 동일)
+      const h = el('<div class="vlp-pane-head"><h2></h2></div>'); h.querySelector('h2').textContent = getFilter() === 'exception' ? '예외 큐' : '건 목록'; const inStrip = wide(); /* 제목은 메뉴 이름과 같게(예외 큐 메뉴에서는 "예외 큐") */ strip.hidden = !inStrip; strip.innerHTML = ''; // 상단 메뉴 + 상태 띠 구조(카마스터와 동일)
       if (inStrip) strip.appendChild(h); else listPane.appendChild(h);
       const f = getFilter();
       const chips = el('<div class="vlp-chip-row" role="group" aria-label="상태 필터"></div>'); (inStrip ? strip : listPane).appendChild(chips);

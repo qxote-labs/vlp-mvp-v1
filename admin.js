@@ -236,13 +236,58 @@ function _renderInner() {
       nav.appendChild(more); nav.appendChild(panel); paintMore();
       try { new MutationObserver(() => { if (document.body.contains(nav)) paintMore(); }).observe(nav, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'aria-current'] }); } catch (e) { /* 무시 */ }
     }
+    // 태블릿·PC(≥768px): 들어가는 만큼만 보이고, 넘치는 메뉴는 로그아웃 앞 [⋯ n]에 묶는다(가로 스크롤 막대 없음). 선택한 메뉴는 항상 보인다.
+    {
+      const ovf = el('<button type="button" class="vlp-adm-ovf" aria-haspopup="menu" aria-expanded="false" hidden><span class="vlp-adm-ico" aria-hidden="true">⋯</span><span class="vlp-adm-ovn"></span><span class="vlp-adm-dot" hidden></span></button>');
+      const pan = el('<div class="vlp-adm-ovp" role="menu" aria-label="더 많은 메뉴" hidden></div>');
+      const logoutB = nav.querySelector('.vlp-adm-nav-btn[data-menu=logout]'); nav.insertBefore(ovf, logoutB); nav.appendChild(pan);
+      const wideMq = window.matchMedia ? window.matchMedia('(min-width: 768px)') : { matches: true };
+      const items = () => [...nav.querySelectorAll('.vlp-adm-nav-btn')].filter(b => b.dataset.menu !== 'logout');
+      const dotN = (b) => { const d = b.querySelector('.vlp-adm-dot'); return d && !d.hidden ? (parseInt((d.textContent || '').replace(/\D/g, ''), 10) || 1) : 0; };
+      const setT = (e, v) => { if (e.textContent !== v) e.textContent = v; };
+      const closeP = () => { if (!pan.hidden) pan.hidden = true; ovf.setAttribute('aria-expanded', 'false'); };
+      let hiddenList = [], raf = 0;
+      const fit = () => {
+        raf = 0; if (!document.body.contains(nav)) return;
+        const all = items(); all.forEach(b => b.classList.remove('ovf-hide'));
+        if (!wideMq.matches) { ovf.hidden = true; nav.classList.remove('has-ovf'); hiddenList = []; closeP(); return; }
+        ovf.hidden = true; nav.classList.remove('has-ovf');
+        const room = nav.clientWidth;
+        if (nav.scrollWidth <= room + 1) { hiddenList = []; closeP(); return; }
+        ovf.hidden = false; nav.classList.add('has-ovf'); setT(ovf.querySelector('.vlp-adm-ovn'), String(all.length));
+        const cs = getComputedStyle(nav), gap = parseFloat(cs.columnGap || cs.gap) || 4, padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
+        const fixed = [...nav.children].filter(c => !all.includes(c) && c !== pan && !c.hidden && getComputedStyle(c).display !== 'none').reduce((a, c) => a + c.offsetWidth + gap, 0);
+        let avail = room - padX - fixed; const cur = all.find(b => b.getAttribute('aria-current') === 'page'), keep = new Set();
+        if (cur) { keep.add(cur); avail -= cur.offsetWidth + gap; }
+        for (const b of all) { if (keep.has(b)) continue; if (avail - (b.offsetWidth + gap) >= 0) { keep.add(b); avail -= b.offsetWidth + gap; } else break; }
+        hiddenList = all.filter(b => !keep.has(b)); hiddenList.forEach(b => b.classList.add('ovf-hide'));
+        const n = hiddenList.length, sum = hiddenList.reduce((a, b) => a + dotN(b), 0), d = ovf.querySelector('.vlp-adm-dot');
+        setT(ovf.querySelector('.vlp-adm-ovn'), String(n)); if (d.hidden !== !sum) d.hidden = !sum; setT(d, sum ? '●' + sum : '');
+        ovf.setAttribute('aria-label', '더 많은 메뉴 ' + n + '개' + (sum ? ', 알림 ' + sum + '건' : ''));
+        if (!n) { ovf.hidden = true; nav.classList.remove('has-ovf'); }
+      };
+      const sched = () => { if (!raf) raf = requestAnimationFrame(fit); };
+      const openP = () => {
+        pan.innerHTML = '';
+        hiddenList.forEach((b) => { const mi = el('<button type="button" role="menuitem" class="vlp-adm-mi"><span class="vlp-adm-ico" aria-hidden="true"></span><span class="mt"></span><span class="vlp-adm-dot" hidden></span></button>'); mi.dataset.menu = b.dataset.menu; mi.querySelector('.vlp-adm-ico').textContent = (b.querySelector('.vlp-adm-ico') || {}).textContent || ''; mi.querySelector('.mt').textContent = b.getAttribute('aria-label') || b.title || (b.querySelector('.vlp-adm-lbl') || {}).textContent || ''; const n = dotN(b); if (n) { const dd = mi.querySelector('.vlp-adm-dot'); dd.hidden = false; dd.textContent = '●' + n; } mi.addEventListener('click', () => { closeP(); b.click(); }); pan.appendChild(mi); });
+        pan.hidden = false; ovf.setAttribute('aria-expanded', 'true'); const f = pan.querySelector('.vlp-adm-mi'); if (f) f.focus();
+      };
+      ovf.addEventListener('click', () => { if (pan.hidden) openP(); else closeP(); });
+      pan.addEventListener('keydown', (e) => { const its = [...pan.querySelectorAll('.vlp-adm-mi')], i = its.indexOf(document.activeElement); if (e.key === 'Escape') { closeP(); ovf.focus(); } else if (e.key === 'ArrowDown') { e.preventDefault(); (its[i + 1] || its[0]).focus(); } else if (e.key === 'ArrowUp') { e.preventDefault(); (its[i - 1] || its[its.length - 1]).focus(); } });
+      document.addEventListener('click', (e) => { if (!pan.hidden && !pan.contains(e.target) && !ovf.contains(e.target)) closeP(); });
+      window.addEventListener('resize', sched);
+      try { new ResizeObserver(sched).observe(nav); } catch (e) { /* 무시 */ }
+      try { new MutationObserver(sched).observe(nav, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'aria-current'] }); } catch (e) { /* 무시 */ }
+      shell.__fitNav = fit; // 화면에 붙인 직후 바로 한 번 맞춘다(첫 그림에 메뉴가 전부 보였다 줄어드는 깜박임 방지)
+      requestAnimationFrame(() => requestAnimationFrame(fit)); try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(sched); } catch (e) { /* 무시 */ }
+    }
     const main = shell.querySelector('.vlp-adm-main');
     { const bn = effectiveTab === 'care' ? homeDoneBanner(admin, careList) : null; if (bn) main.appendChild(bn); }
     if (tabRenderers[effectiveTab]) main.appendChild(tabRenderers[effectiveTab]());
     else {
       main.appendChild(VLP.adminConsole.render());
     }
-    root.appendChild(shell);
+    root.appendChild(shell); try { if (shell.__fitNav) shell.__fitNav(); } catch (e) { /* 무시 */ }
     paintHomeDot(homeRows(admin, careList)); refreshDelSummary().then(() => { try { paintHomeDot(homeRows(admin, careList)); } catch (e) { /* 무시 */ } });
   }
 }
@@ -284,13 +329,14 @@ function renderShopApprovalTab(admin) {
   const shops = Store.getShops().filter(s => shopInAdminScope(s, admin));
   const pending = shops.filter(s => s.verificationStatus === 'pending');
   const processed = shops.filter(s => s.verificationStatus !== 'pending');
-  const wrap = el(`<div></div>`);
+  const wrap = el(`<div class="vlp-shops"></div>`);
   wrap.appendChild(el(`<div class="vlp-pane-head"><h2>업체 승인</h2></div>`));
   const scopeNote = admin.adminScope === 'community' ? ' 담당 그룹에 속한 업체만 보입니다.' : '';
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">신규 업체 등록 요청을 사업자등록증 이미지로 육안 확인한 뒤 승인/반려합니다. 승인 전에는 고객 화면에 노출되지 않습니다.${scopeNote}</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:var(--t-gap-bottom);">신규 업체 등록 요청을 사업자등록증 이미지로 육안 확인한 뒤 승인/반려합니다. 승인 전에는 고객 화면에 노출되지 않습니다.${scopeNote}</div>`));
   if (pending.length === 0) {
     wrap.appendChild(el(`<div class="empty-state"><div class="big">🏢</div>승인 대기 중인 업체가 없습니다.</div>`));
   } else {
+    const grid = el(`<div class="vlp-shop-grid"></div>`); wrap.appendChild(grid);
     pending.forEach(s => {
       const groupNames = (s.groupIds || []).map(gid => { const g = Store.getGroup(gid); return g ? g.name : gid; }).join(', ') || '-';
       const card = el(`<div class="admin-controls">
@@ -308,11 +354,11 @@ function renderShopApprovalTab(admin) {
       </div>`);
       card.querySelector(`#shop-approve-${s.id}`).addEventListener('click', () => { Store.approveShop(s.id); render(); });
       card.querySelector(`#shop-reject-${s.id}`).addEventListener('click', () => { Store.rejectShop(s.id); render(); });
-      wrap.appendChild(card);
+      grid.appendChild(card);
     });
   }
   if (processed.length) {
-    wrap.appendChild(el(`<h3 style="margin-top:20px;">전체 업체 현황</h3>`));
+    wrap.appendChild(el(`<h3 style="margin-top:var(--k-sec-mt);">전체 업체 현황</h3>`));
     const table = el(`<table><tr><th>업체명</th><th>상태</th><th>소속 그룹</th></tr></table>`);
     processed.forEach(s => {
       const ok = !s.verificationStatus || s.verificationStatus === 'approved';
@@ -330,7 +376,7 @@ const CARE_FILTERS = [['all', '전체', () => true], ['quote', '견적 대기', 
   ['active', '진행중 시공', c => SHOP_DISPLAY_STAGES.some(s => s.code === c.status)], ['wait', '확인 대기', c => ['고객검수대기', '수령대기'].includes(c.status)],
   ['dispute', '품질 이의', c => careDisputed(c)], ['escalated', '운영자 중재 필요', c => careDisputed(c) && c.escalated], ['done', '완료', c => c.status === '수령확인' && c.shopRated]];
 function renderCareTab(careList) {
-  const head = () => el(`<div class="vlp-pane-head"><h2>신차 케어 서비스</h2>
+  const head = () => el(`<div class="vlp-pane-head"><h2>${careFilter() === 'dispute' ? '이의 중재' : '신차 케어 서비스'}</h2>
     <button class="btn btn-primary" style="width:auto;padding:10px 18px;" onclick="toggleNewCareForm()">${showNewCareForm ? '← 목록으로' : '+ 대리 신청'}</button>
   </div>`);
   if (showNewCareForm) { const w = el(`<div></div>`); w.appendChild(head()); w.appendChild(renderNewCareForm()); return w; }
