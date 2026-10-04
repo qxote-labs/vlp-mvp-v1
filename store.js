@@ -36,7 +36,7 @@
  *    서비스 예약과 신차 케어 서비스 주문 둘 다 각자의 transit을 독립적으로 가질 수 있다.
  */
 
-const STORE_KEY = 'auto_mvp_store_v6';
+const STORE_KEY = 'vlp_mvp_v1_store'; // 참고 원본 mvp_v6(auto_mvp_store_v6)와 같은 주소(github.io)에서 열어도 저장소가 섞이지 않게 이름을 분리
 const TRANSIT_DURATION_MS = 8000; // 데모용 배송 소요시간(실제로는 실시간 GPS 기반). 8초.
 
 // 서비스 완료 + 평가 제출 시 지급하는 플랫폼 기본 포인트. 두 서비스가 독립적으로 각각 지급한다.

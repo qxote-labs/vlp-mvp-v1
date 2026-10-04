@@ -68,7 +68,7 @@
     btn.addEventListener('click', () => submit(ph.value));
     [ph, nm].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter' && valid()) submit(ph.value); }));
     w.querySelector('#app-quick').addEventListener('change', (e) => { if (e.target.value) { ph.value = e.target.value; submit(e.target.value); } });
-    ph.focus();
+    const pf = q.get('prefill'); if (pf) { ph.value = fmt(pf); const pn = q.get('prefillName'); if (pn && !V.roles.forPhone(ph.value).length) { box.hidden = false; nm.value = pn; } sync(); btn.focus(); } else ph.focus(); // 런처에서 전화번호를 채워 열기(계속은 직접 누른다)
   }
 
   function start() {

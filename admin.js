@@ -56,6 +56,7 @@ function renderLogin() {
   const phoneEl = wrap.querySelector('#login-phone'), hintEl = wrap.querySelector('#login-hint'), submitBtn = wrap.querySelector('#login-submit');
   phoneEl.addEventListener('input', () => { phoneEl.value = loginPhoneFormat(phoneEl.value); hintEl.textContent = ''; });
   phoneEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitBtn.click(); });
+  { const pf = new URLSearchParams(location.search).get('prefill'); if (pf) { phoneEl.value = loginPhoneFormat(pf); submitBtn.focus(); } } // 런처에서 전화번호를 채워 열기(확인 버튼은 직접 누른다)
   submitBtn.addEventListener('click', () => {
     const admin = Store.getAdminByPhone(phoneEl.value);
     if (!admin || admin.adminScope !== ADMIN_MODE) { hintEl.textContent = '등록되지 않은 연락처입니다. 번호를 다시 확인해 주세요.'; return; }

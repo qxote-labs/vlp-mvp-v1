@@ -139,6 +139,7 @@
 
     // ---- 단계별 인도 건: 기존 로그인 목록의 고객(김민준~윤서아)과 카마스터 3명에게 붙인다 ----
     const flows = await seedFlows({ asCust, shopSite, car, site });
+    try { localStorage.setItem('vlp_demo_seeded', '1'); } catch (e) { /* 저장 불가 환경 */ } // 런처(index.html)가 처음 방문 때만 자동으로 채우도록
     V.api.session.clear();
     return { accounts: ACC, claimToken: c6.claimToken, claimContractNo: c6.serviceContractNo, contracts: { c1, c2, c3, c4, c5, c6: { contractId: c6.contractId, serviceContractNo: c6.serviceContractNo } }, flows };
   }

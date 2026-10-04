@@ -92,6 +92,7 @@ function renderLogin() {
   phoneEl.addEventListener('input', () => { phoneEl.value = loginPhoneFormat(phoneEl.value); hintEl.textContent = ''; });
   phoneEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitBtn.click(); });
   pwEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitBtn.click(); });
+  { const q = new URLSearchParams(location.search), pf = q.get('prefill'); if (pf) { phoneEl.value = loginPhoneFormat(pf); pwEl.value = q.get('prefillPin') || ''; submitBtn.focus(); } } // 런처에서 번호·비밀번호를 채워 열기(로그인은 직접 누른다, 데모 전용)
   submitBtn.addEventListener('click', () => {
     const km = Store.getKarmasterByPhone(phoneEl.value);
     if (!km) { hintEl.textContent = '등록되지 않은 연락처입니다. 번호를 다시 확인해 주세요.'; return; }

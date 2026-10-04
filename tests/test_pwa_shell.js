@@ -38,7 +38,7 @@ const BASE = 'http://localhost:8000';
     const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
     console.log('2) 서비스 워커 활성, 설치 가능 오류:', JSON.stringify(installabilityErrors));
     assert.deepEqual(installabilityErrors, []);
-    const cached = await page.evaluate(async () => (await (await caches.open('vlp-shell-v44')).keys()).length);
+    const cached = await page.evaluate(async () => (await (await caches.open('vlp-shell-v49')).keys()).length);
     assert.ok(cached >= 20, '앱 셸 캐시 항목 ' + cached);
 
     // 3) 오프라인에서 마지막 화면 렌더 (고객·카마스터·시공사·관리자)

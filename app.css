@@ -1293,3 +1293,18 @@ table td, table th { vertical-align: middle; }
 .vlp-notes-bell .vlp-notes-head { position: relative; min-height: 36px; height: 36px; padding: 0 12px; font-size: 13px; font-weight: 700; }
 .vlp-notes-bell .vlp-notes-head::before { content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
 .vlp-notes-bell .vlp-notes-head .badge { font-size: 11px; }
+
+/* 메뉴(상단·하단 탭) 글자: 본문(14px)보다 작지 않게. 태블릿·PC 상단/사이드 14px·600, 폰 하단 13px */
+.vlp-nav-btn { font-size: 13px; }
+.vlp-nav-btn b { font-weight: 600; }
+@media (min-width: 768px) {
+  .vlp-nav-btn, .lay-top .vlp-nav-btn, .vlp-app.vlp-app-customer[data-sw=menu] .vlp-nav-btn, .vlp-app.vlp-app-customer[data-sw=pill] .vlp-nav-btn { font-size: 14px; }
+}
+
+/* 고객 홈: 넓은 화면(1100px~)에서는 오른쪽이 비지 않게 2열 — 왼쪽 확인할 일·진행 중, 오른쪽 바로가기 (760px 읽기 폭 제한은 좁은 화면 기준) */
+@media (min-width: 1100px) {
+  .vlp-app.vlp-app-customer[data-tab=home] .vlp-app-list.vlp-app-list { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 400px); column-gap: 24px; align-content: start; }
+  .vlp-app-customer[data-tab=home] .vlp-app-list > * { grid-column: 1; }
+  .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-home-head, .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-home-sum { grid-column: 1 / -1; }
+  .vlp-app-customer[data-tab=home] .vlp-app-list > .vlp-sc-zone { grid-column: 2; grid-row: 3 / span 12; align-self: start; }
+}
