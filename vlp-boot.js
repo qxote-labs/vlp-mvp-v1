@@ -108,12 +108,15 @@
 (function (g) {
   'use strict';
   const MIN_H = (() => { try { return (g.VLP && g.VLP.config && g.VLP.config.get('fitPanesMinHeight')) || 700; } catch (e) { return 700; } })(), MIN_W = 768; // 노트북 브라우저 높이(약 700~800px)에서도 칸 모드가 켜지도록 700 [제안]
-  let raf = 0, listEl = null, detEl = null, mo = null;
-  const watch = () => { if (mo) try { mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-tab'] }); } catch (e) { /* 무시 */ } };
+  let raf = 0, listEl = null, detEl = null, mo = null, lastScroll = 0, lastSig = '';
+  const watch = () => { if (mo) try { mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'data-tab'] }); } catch (e) { /* 무시 */ } };
   const onListScroll = () => { if (listEl) listEl.classList.toggle('more-below', listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight > 4); };
   const onDetScroll = () => { if (!detEl) return; const act = detEl.querySelector('.vlp-case-act'); detEl.style.setProperty('--act-h', (act ? act.offsetHeight : 0) + 'px'); detEl.classList.toggle('more-below', detEl.scrollHeight - detEl.scrollTop - detEl.clientHeight > 4); }; // 아래 고정 버튼 줄이 있으면 그 위에 "더 있음" 표시
+  const onListScrollEv = () => { lastScroll = g.Date.now(); onListScroll(); };
+  const onDetScrollEv = () => { lastScroll = g.Date.now(); onDetScroll(); };
   const update = () => {
     raf = 0;
+    if (g.Date.now() - lastScroll < 250) { g.setTimeout(kick, 260); return; } // 손가락·휠로 스크롤하는 동안엔 칸을 다시 재지 않는다(재면서 칸 높이를 바꾸면 iOS 가 스크롤을 끊음)
     if (mo) mo.disconnect(); // 이 함수가 바꾸는 클래스가 다시 이 함수를 부르지 않게 잠시 끊는다
     try { run(); } finally { watch(); }
   };
@@ -131,6 +134,8 @@
     const pr = (closed || app.classList.contains('vlp-app-customer')) ? det0 : list; // 고객 화면은 목록이 칩 줄뿐이라 스크롤은 상세 칸이 맡는다 // 잴 기준 칸(목록이 접히면 상세)
     const top = Math.round(pr.getBoundingClientRect().top + (g.scrollY || 0)); // 칸이 시작하는 페이지 기준 위치
     // 칸 아래에 남는 틀 안쪽 여백·틀 바깥 여백. 목록이 짧아 페이지가 화면보다 낮으면 scrollHeight가 화면 높이로 고정돼 아래 여백이 부풀려지므로, 칸을 잠깐 아주 크게 만들어 잰다.
+    const sig = [g.innerWidth, g.innerHeight, top, closed ? 1 : 0, app.className.replace(/\bmore-below\b/g, ''), app.getAttribute('data-tab')].join('|');
+    if (was && sig === lastSig) { onListScroll(); onDetScroll(); return; } // 달라진 게 없으면 칸을 건드리지 않는다(스크롤 위치·진행 중인 터치 스크롤 보호)
     const keepH = pr.style.height, keepT = pr.scrollTop, det = det0, keepDT = det ? det.scrollTop : 0; pr.style.height = '9999px';
     const below = Math.max(0, document.documentElement.scrollHeight - Math.round(pr.getBoundingClientRect().bottom + (g.scrollY || 0)));
     pr.style.height = keepH; pr.scrollTop = keepT; if (det) det.scrollTop = keepDT; // 늘렸다 줄이면 스크롤 위치가 0으로 돌아가므로 되돌린다
@@ -141,10 +146,10 @@
     { const ex = document.documentElement.scrollHeight - g.innerHeight; if (ex > 0 && ex < 48) root.setProperty('--pane-below', (below + ex) + 'px'); }
     if (coarse) { const hh = Math.max(240, g.innerHeight - top - parseFloat(root.getPropertyValue('--pane-below') || below)); if (root.getPropertyValue('--pane-h') !== hh + 'px') root.setProperty('--pane-h', hh + 'px'); } else if (root.getPropertyValue('--pane-h')) root.removeProperty('--pane-h');
     if (g.scrollY > 0 && !was) try { g.scrollTo(0, 0); } catch (e) { /* 무시 */ }
-    if (listEl !== list) { if (listEl) listEl.removeEventListener('scroll', onListScroll); listEl = list; list.addEventListener('scroll', onListScroll, { passive: true }); }
+    if (listEl !== list) { if (listEl) listEl.removeEventListener('scroll', onListScrollEv); listEl = list; list.addEventListener('scroll', onListScrollEv, { passive: true }); }
     onListScroll();
-    if (det0 && detEl !== det0) { if (detEl) detEl.removeEventListener('scroll', onDetScroll); detEl = det0; det0.addEventListener('scroll', onDetScroll, { passive: true }); }
-    onDetScroll();
+    if (det0 && detEl !== det0) { if (detEl) detEl.removeEventListener('scroll', onDetScrollEv); detEl = det0; det0.addEventListener('scroll', onDetScrollEv, { passive: true }); }
+    onDetScroll(); lastSig = sig;
   };
   // 진단용: 주소에 ?fitdebug=1 을 붙이면 오른쪽 아래에 창 크기와 칸 모드 상태를 표시한다(평소엔 아무것도 하지 않음).
   const dbg = (() => { try { return /[?&]fitdebug=1/.test(g.location.search); } catch (e) { return false; } })();
@@ -159,7 +164,9 @@
   const kick = () => { if (!raf) raf = g.requestAnimationFrame(update); };
   const start = () => {
     g.addEventListener('resize', kick);
-    try { mo = new MutationObserver(kick); } catch (e) { mo = null; }
+    try { mo = new MutationObserver((recs) => { // 목록·상세의 '더 있음' 표시 켜고 끄기(스크롤 중 우리가 바꾸는 클래스)는 칸 다시 재기를 부르지 않는다
+      if (recs.every((r) => r.type === 'attributes' && r.attributeName === 'class' && String(r.oldValue || '').replace(/\bmore-below\b/, '').trim() === r.target.className.toString().replace(/\bmore-below\b/, '').trim())) return;
+      kick(); }); } catch (e) { mo = null; }
     watch(); kick();
     // 글꼴·이미지가 늦게 들어와 칸 윗선이 밀리는 경우를 위해 한 번씩 더 맞춘다
     try { g.addEventListener('load', kick); if (document.fonts && document.fonts.ready) document.fonts.ready.then(kick); } catch (e) { /* 무시 */ }

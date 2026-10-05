@@ -126,9 +126,9 @@
       if (!wide) { sc.style.height = ''; detail.style.height = ''; gv.style.height = ''; return; }
       const pane = !gv.hidden ? gv : (sc.offsetParent ? sc : detail), keep = pane.style.height, keepT = pane.scrollTop, keepD = detail.scrollTop; pane.style.height = '9999px'; const r = pane.getBoundingClientRect(), topP = Math.round(r.top + (g.scrollY || 0)), below = Math.max(0, document.documentElement.scrollHeight - Math.round(r.bottom + (g.scrollY || 0))); pane.style.height = keep; pane.scrollTop = keepT; detail.scrollTop = keepD;
       const h = Math.max(240, g.innerHeight - topP - below); if (!gv.hidden) gv.style.height = h + 'px'; else { sc.style.height = h + 'px'; detail.style.height = h + 'px'; }
-      if (g.scrollY > 0 && !root._fitted) { try { g.scrollTo(0, 0); } catch (e) { /* 무시 */ } } root._fitted = true;
+      if (g.scrollY > 0 && !root._fitted) { try { g.scrollTo(0, 0); } catch (e) { /* 무시 */ } } root._fitted = true; root._fitSig = g.innerWidth + 'x' + g.innerHeight;
     }
-    const kick = () => { g.requestAnimationFrame(fit); }; g.addEventListener('resize', kick);
+    const kick = () => { if (root._fitSig === g.innerWidth + 'x' + g.innerHeight) return; g.requestAnimationFrame(fit); }; g.addEventListener('resize', kick); // 창 크기가 그대로면 다시 재지 않는다(iOS 는 스크롤 중에도 resize 가 오고, 재면서 높이를 바꾸면 터치 스크롤이 끊김)
     root.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !detail.hidden) closeDetail(); });
     function showDetail(r) {
       st.sel = r.key; st.mode = 'user'; openPane((r.name || '(이름 없음)') + ' · ' + (r.phone || ''));

@@ -38,6 +38,18 @@ const after = () => { const app = document.querySelector('.vlp-app.fit-panes'); 
       const p = await start(b, role, id, 1180, 820, true); await openMenu(p, menu[0], menu.slice(2)); await p.waitForTimeout(900);
       const row = p.locator('.vlp-case-row').first(); if (await row.count()) { await row.click({ timeout: 2000 }).catch(() => {}); await p.waitForTimeout(800); }
       const r = await p.evaluate(probe, true); if (!r) { bad.push(role + ' 칸 모드 꺼짐'); await p.context().close(); continue; } r.bad.forEach((x) => bad.push(role + ' ' + x));
+      // 스크롤 도중 resize(iOS 주소줄 변화)·클래스 변경이 들어와도 칸을 다시 재지 않아 스크롤 위치·높이가 그대로(재면 iOS 가 터치 스크롤을 끊음)
+      if (role === 'karmaster') { const st = await p.evaluate(async () => { const l = document.querySelector('.vlp-app-list'); l.scrollTop = 250; const hs = []; { const cs = l.style; let cur = cs.height; Object.defineProperty(cs, 'height', { get: () => cur, set: (v) => { hs.push(v); cur = v; CSSStyleDeclaration.prototype.__lookupSetter__ ? 0 : 0; cs.setProperty('height', v); }, configurable: true }); }
+          for (let i = 0; i < 4; i++) { window.dispatchEvent(new Event('resize')); { const x = document.createElement('i'); document.body.appendChild(x); x.remove(); } document.querySelector('.vlp-app-detail').classList.toggle('more-below'); await new Promise((r) => setTimeout(r, 60)); }
+          await new Promise((r) => setTimeout(r, 700)); return { top: l.scrollTop, hs: hs.filter((x) => x) }; });
+        if (st.top !== 250) bad.push('스크롤 중 resize 로 목록 위치가 바뀜 ' + st.top); if (st.hs.some((x) => x === '9999px')) bad.push('스크롤 중 칸 높이를 9999px 로 바꿈(재측정)'); }
+      // 목록을 접어 상세만 남긴 상태(이때는 상세가 재측정 대상): 같은 조건에서 위치·높이가 유지돼야 한다
+      if (role === 'karmaster') { await p.locator('.vlp-list-toggle').click({ timeout: 2000 }).catch(() => {}); await p.waitForTimeout(700);
+        const st = await p.evaluate(async () => { const d = document.querySelector('.vlp-app-detail'); if (!d.querySelector('.tt-spacer')) { const sp = document.createElement('div'); sp.style.cssText = 'height:2400px;flex:0 0 auto'; sp.className = 'tt-spacer'; d.appendChild(sp); } d.scrollTop = 250; const hs = []; { const cs = d.style; let cur = cs.height; Object.defineProperty(cs, 'height', { get: () => cur, set: (v) => { hs.push(v); cur = v; cs.setProperty('height', v); }, configurable: true }); }
+          for (let i = 0; i < 4; i++) { window.dispatchEvent(new Event('resize')); { const x = document.createElement('i'); document.body.appendChild(x); x.remove(); } d.classList.toggle('more-below'); await new Promise((r) => setTimeout(r, 60)); }
+          await new Promise((r) => setTimeout(r, 700)); return { top: d.scrollTop, hs: hs.filter((x) => x), closed: document.querySelector('.vlp-app').classList.contains('list-closed') }; });
+        if (!st.closed) bad.push('목록 접힘 상태를 만들지 못함(테스트 점검)'); if (st.top !== 250) bad.push('목록 접힌 상태에서 스크롤 중 resize 로 상세 위치가 바뀜 ' + st.top); if (st.hs.some((x) => x === '9999px')) bad.push('목록 접힌 상태에서 칸 높이를 9999px 로 바꿈');
+        await p.locator('.vlp-list-toggle').click({ timeout: 2000 }).catch(() => {}); await p.waitForTimeout(500); }
       const a = await p.evaluate(after); a.filter((x) => x.can).forEach((x) => { if (!x.moved) bad.push(role + ' ' + x.n + ' 안쪽 스크롤 안 움직임'); if (x.gut < 6) bad.push(role + ' ' + x.n + ' 막대 항상 보임 아님'); });
       if (!a.some((x) => x.can)) bad.push(role + ' 스크롤 가능한 칸 없음');
       await p.context().close();
