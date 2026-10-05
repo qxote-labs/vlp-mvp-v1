@@ -25,6 +25,20 @@ const BASE = 'http://localhost:8000';
       s = await st(); assert.ok(s.over <= 1 && s.cur === target && s.vis.includes(target), w + ': 목록에서 고른 메뉴로 이동·항상 보임 ' + JSON.stringify(s));
       await p.context().close();
     }
+    // 터치(탭)로 열기: 목록이 실제로 화면 안에 보이고(잘리거나 가려지지 않음), 각 항목을 눌러 이동할 수 있다
+    for (const [w, h] of [[820, 1180], [1024, 768]]) {
+      const p = await (await b.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true })).newPage(); p.on('pageerror', e => errs.push(e.message));
+      await p.goto(BASE + '/demo.html?nosw=1'); await p.click('#load'); await p.waitForFunction(() => /채웠/.test(document.querySelector('#status').textContent));
+      await loginAs(p, 'supervisor', 'admin_super', ''); await p.waitForTimeout(1200);
+      await p.locator('.vlp-adm-ovf').tap(); await p.waitForTimeout(500);
+      const r = await p.evaluate(() => { const pan = document.querySelector('.vlp-adm-ovp'), q = pan.getBoundingClientRect(), cs = getComputedStyle(pan); const items = [...pan.querySelectorAll('.vlp-adm-mi')];
+        const hit = items.map((it) => { const b = it.getBoundingClientRect(), e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!e && (it === e || it.contains(e)); });
+        return { hidden: pan.hidden, pos: cs.position, inView: q.left >= 0 && q.right <= innerWidth && q.top >= 0 && q.bottom <= innerHeight, hit, n: items.length }; });
+      assert.ok(!r.hidden && r.pos === 'fixed' && r.inView && r.n > 0 && r.hit.every(Boolean), w + ': 탭으로 연 목록이 화면 안에 보이고 눌림 ' + JSON.stringify(r));
+      await p.locator('.vlp-adm-ovp .vlp-adm-mi').last().tap(); await p.waitForTimeout(900);
+      assert.ok(await p.locator('.vlp-adm-ovp').isHidden(), w + ': 항목을 탭하면 닫힘');
+      await p.context().close();
+    }
     assert.deepStrictEqual(errs, [], errs.join('\n')); console.log('PASS test_admin_nav_overflow');
   } catch (e) { console.error('FAIL', e.message); process.exitCode = 1; } finally { await b.close(); }
 })();

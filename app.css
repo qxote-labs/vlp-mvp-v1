@@ -1576,7 +1576,7 @@ table td, table th { vertical-align: middle; }
   .vlp-adm-ovf .vlp-adm-ico { font-size: 20px; line-height: 1; }
   .vlp-adm-ovf:hover, .vlp-adm-ovf:focus-visible, .vlp-adm-ovf[aria-expanded=true] { background: var(--c-brand-soft, #e4eef2); }
   .vlp-adm-nav.has-ovf .vlp-adm-nav-btn[data-menu=logout] { margin-left: 0; }
-  .vlp-adm-ovp { display: flex; flex-direction: column; position: absolute; right: 8px; top: calc(100% + 4px); z-index: 30; min-width: 220px; background: var(--c-surface, #fff); border: 1px solid var(--c-line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 6px; }
+  .vlp-adm-ovp { display: flex; flex-direction: column; position: fixed; right: 8px; top: 160px; z-index: 1000; min-width: 220px; background: var(--c-surface, #fff); border: 1px solid var(--c-line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 6px; }
   .vlp-adm-ovp[hidden] { display: none; }
   .vlp-adm-ovp .vlp-adm-mi { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 8px; cursor: pointer; font-size: 14px; }
   .vlp-adm-ovp .vlp-adm-mi .mt { flex: 1; } .vlp-adm-ovp .vlp-adm-mi .vlp-adm-ico { font-size: 18px; width: 24px; text-align: center; }

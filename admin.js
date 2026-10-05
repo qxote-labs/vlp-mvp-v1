@@ -267,15 +267,17 @@ function _renderInner() {
         if (!n) { ovf.hidden = true; nav.classList.remove('has-ovf'); }
       };
       const sched = () => { if (!raf) raf = requestAnimationFrame(fit); };
+      // 패널은 fixed 로 띄운다: 상단 메뉴줄의 overflow(clip)·쌓임 문맥에 잘리거나 가려지지 않게(아이패드 사파리에서 포커스만 가고 메뉴가 안 보이던 문제 대응)
+      const placeP = () => { if (pan.hidden) return; const r = ovf.getBoundingClientRect(); pan.style.top = Math.round(r.bottom + 4) + 'px'; pan.style.right = Math.max(8, Math.round(window.innerWidth - r.right)) + 'px'; pan.style.left = 'auto'; };
       const openP = () => {
         pan.innerHTML = '';
         hiddenList.forEach((b) => { const mi = el('<button type="button" role="menuitem" class="vlp-adm-mi"><span class="vlp-adm-ico" aria-hidden="true"></span><span class="mt"></span><span class="vlp-adm-dot" hidden></span></button>'); mi.dataset.menu = b.dataset.menu; mi.querySelector('.vlp-adm-ico').textContent = (b.querySelector('.vlp-adm-ico') || {}).textContent || ''; mi.querySelector('.mt').textContent = b.getAttribute('aria-label') || b.title || (b.querySelector('.vlp-adm-lbl') || {}).textContent || ''; const n = dotN(b); if (n) { const dd = mi.querySelector('.vlp-adm-dot'); dd.hidden = false; dd.textContent = '●' + n; } mi.addEventListener('click', () => { closeP(); b.click(); }); pan.appendChild(mi); });
-        pan.hidden = false; ovf.setAttribute('aria-expanded', 'true'); const f = pan.querySelector('.vlp-adm-mi'); if (f) f.focus();
+        pan.hidden = false; placeP(); ovf.setAttribute('aria-expanded', 'true'); const f = pan.querySelector('.vlp-adm-mi'); if (f) f.focus({ preventScroll: true });
       };
       ovf.addEventListener('click', () => { if (pan.hidden) openP(); else closeP(); });
       pan.addEventListener('keydown', (e) => { const its = [...pan.querySelectorAll('.vlp-adm-mi')], i = its.indexOf(document.activeElement); if (e.key === 'Escape') { closeP(); ovf.focus(); } else if (e.key === 'ArrowDown') { e.preventDefault(); (its[i + 1] || its[0]).focus(); } else if (e.key === 'ArrowUp') { e.preventDefault(); (its[i - 1] || its[its.length - 1]).focus(); } });
       document.addEventListener('click', (e) => { if (!pan.hidden && !pan.contains(e.target) && !ovf.contains(e.target)) closeP(); });
-      window.addEventListener('resize', sched);
+      window.addEventListener('resize', () => { sched(); placeP(); }); window.addEventListener('scroll', placeP, { passive: true });
       try { new ResizeObserver(sched).observe(nav); } catch (e) { /* 무시 */ }
       try { new MutationObserver(sched).observe(nav, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'aria-current'] }); } catch (e) { /* 무시 */ }
       shell.__fitNav = fit; // 화면에 붙인 직후 바로 한 번 맞춘다(첫 그림에 메뉴가 전부 보였다 줄어드는 깜박임 방지)
