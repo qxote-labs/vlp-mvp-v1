@@ -19,4 +19,4 @@ async function eachScreen(browser, w, h, cb, errs) {
     await p.context().close();
   }
 }
-module.exports = { eachScreen, ROLES };
+module.exports = { eachScreen, ROLES, openMenu };

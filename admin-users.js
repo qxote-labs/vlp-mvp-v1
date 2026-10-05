@@ -122,7 +122,7 @@
     }
     function fit() {
       const sc = root.querySelector('.vlp-usr-scroll'), gv = root.querySelector('.vlp-usr-gview'); if (!sc || !document.body.contains(root)) return;
-      const minH = (() => { try { return (g.VLP && VLP.config && VLP.config.get('fitPanesMinHeight')) || 700; } catch (e) { return 700; } })(), wide = g.innerWidth >= 768 && g.innerHeight >= minH; // 다른 칸 화면(vlp-boot.js)과 같은 기준
+      const minH = (() => { try { return (g.VLP && VLP.config && VLP.config.get('fitPanesMinHeight')) || 700; } catch (e) { return 700; } })(), touch = !!(g.matchMedia && g.matchMedia('(pointer: coarse)').matches), wide = !touch && g.innerWidth >= 768 && g.innerHeight >= minH; // 터치 기기(아이패드)는 칸 안 스크롤을 쓰지 않는다(vlp-boot.js 와 같은 규칙) // 다른 칸 화면(vlp-boot.js)과 같은 기준
       if (!wide) { sc.style.height = ''; detail.style.height = ''; gv.style.height = ''; return; }
       const pane = !gv.hidden ? gv : (sc.offsetParent ? sc : detail), keep = pane.style.height, keepT = pane.scrollTop, keepD = detail.scrollTop; pane.style.height = '9999px'; const r = pane.getBoundingClientRect(), topP = Math.round(r.top + (g.scrollY || 0)), below = Math.max(0, document.documentElement.scrollHeight - Math.round(r.bottom + (g.scrollY || 0))); pane.style.height = keep; pane.scrollTop = keepT; detail.scrollTop = keepD;
       const h = Math.max(240, g.innerHeight - topP - below); if (!gv.hidden) gv.style.height = h + 'px'; else { sc.style.height = h + 'px'; detail.style.height = h + 'px'; }
