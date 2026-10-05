@@ -34,6 +34,7 @@ const TEST_FILES = [
   'test_mobile_layout.js',
   'test_card_spacing.js',
   'test_tokens.js',
+  'test_touch_scroll.js',
   'test_qa_a11y.js',
   'test_guide.js',
   'test_offline_banner.js',

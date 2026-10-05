@@ -123,7 +123,8 @@
     if (!app) { listEl = null; return; }
     const list = app.querySelector('.vlp-app-list');
     const det0 = app.querySelector('.vlp-app-detail'), closed = !!list && getComputedStyle(list).display === 'none'; // 목록을 접어도 상세 칸은 같은 높이 규칙을 따른다
-    const ok = g.innerWidth >= MIN_W && g.innerHeight >= MIN_H && list && (!closed || det0);
+    const touch = (() => { try { return !!(g.matchMedia && g.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; } })(); // 아이패드 등 터치 기기: 칸 안 스크롤은 막대가 안 보이고 안쪽 스크롤이 막히는 일이 있어 쓰지 않고 페이지 전체 스크롤로 둔다
+    const ok = !touch && g.innerWidth >= MIN_W && g.innerHeight >= MIN_H && list && (!closed || det0);
     if (!ok) { app.classList.remove('fit-panes'); if (list) list.classList.remove('more-below'); listEl = null; return; }
     const was = app.classList.contains('fit-panes'); if (!was) app.classList.add('fit-panes'); // 이미 켜져 있으면 건드리지 않는다(껐다 켜면 목록 스크롤 위치가 초기화됨)
     const pr = (closed || app.classList.contains('vlp-app-customer')) ? det0 : list; // 고객 화면은 목록이 칩 줄뿐이라 스크롤은 상세 칸이 맡는다 // 잴 기준 칸(목록이 접히면 상세)
