@@ -1702,19 +1702,9 @@ html[style*="--pane-h"] .vlp-app.fit-panes.lay-top .vlp-app-list,
 html[style*="--pane-h"] .vlp-app.fit-panes.lay-top .vlp-app-detail,
 html[style*="--pane-h"] .vlp-app.fit-panes.vlp-app-customer .vlp-app-detail { height: var(--pane-h); -webkit-overflow-scrolling: touch; }
 .vlp-app.fit-panes .vlp-app-detail > .vlp-case { flex-shrink: 0; } /* 내용이 칸보다 길 때 줄어들어 잘리지 않고 칸 안에서 스크롤되게 */
-@media (pointer: coarse) {
-  .vlp-app.fit-panes .vlp-app-list::-webkit-scrollbar, .vlp-app.fit-panes .vlp-app-detail::-webkit-scrollbar, .vlp-usr-scroll::-webkit-scrollbar, .vlp-usr-detail::-webkit-scrollbar, .vlp-usr-gview::-webkit-scrollbar { width: 10px; height: 10px; }
-  .vlp-app.fit-panes .vlp-app-list::-webkit-scrollbar-track, .vlp-app.fit-panes .vlp-app-detail::-webkit-scrollbar-track, .vlp-usr-scroll::-webkit-scrollbar-track, .vlp-usr-detail::-webkit-scrollbar-track, .vlp-usr-gview::-webkit-scrollbar-track { background: rgba(0,0,0,.06); border-radius: 5px; }
-  .vlp-app.fit-panes .vlp-app-list::-webkit-scrollbar-thumb, .vlp-app.fit-panes .vlp-app-detail::-webkit-scrollbar-thumb, .vlp-usr-scroll::-webkit-scrollbar-thumb, .vlp-usr-detail::-webkit-scrollbar-thumb, .vlp-usr-gview::-webkit-scrollbar-thumb { background: rgba(60,70,85,.55); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
-}
+/* (v112) 터치 기기에서도 스크롤 막대는 꾸미지 않는다 — iOS 기본(표준: 오른쪽, 스크롤할 때 얇게 표시). 더 있음은 아래 화살표로 안내 */
 .vlp-app.fit-panes .vlp-app-detail.more-below::after { content: ''; display: block; flex: 0 0 44px; position: sticky; bottom: 0; height: 44px; margin-top: -44px; pointer-events: none;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='13' fill='white' stroke='%23d5d9df'/%3E%3Cpath d='M8.5 11.5 14 17l5.5-5.5' fill='none' stroke='%230b6e8a' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center 8px / 28px 28px,
     linear-gradient(to bottom, rgba(255,255,255,0), var(--c-surface, #fff) 85%); }
 .vlp-app.fit-panes .vlp-app-detail.more-below::after { bottom: var(--act-h, 0px); }
 
-/* v111 터치 기기: 항상 보이는 안쪽 스크롤 막대(iOS 는 내용 위에 겹쳐 그림)가 목록 카드 오른쪽 끝을 가리지 않게 막대를 가늘게 하고 칸 오른쪽에 막대 자리를 둔다 */
-@media (pointer: coarse) {
-  .vlp-app.fit-panes .vlp-app-list::-webkit-scrollbar, .vlp-app.fit-panes .vlp-app-detail::-webkit-scrollbar { width: 8px; height: 8px; }
-  .vlp-app.fit-panes .vlp-app-list::-webkit-scrollbar-track, .vlp-app.fit-panes .vlp-app-detail::-webkit-scrollbar-track { background: transparent; }
-  .vlp-app.fit-panes.lay-top .vlp-app-list { padding-right: 12px; }
-}

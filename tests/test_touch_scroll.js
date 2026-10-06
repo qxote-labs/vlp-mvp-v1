@@ -1,5 +1,5 @@
 // 터치 기기(아이패드 폭): PC 와 같은 "칸" 동작(목록·상세가 각자 스크롤)을 유지한다 —
-// 칸 모드 ON, 칸 높이가 창 안에 들어옴(페이지가 같이 밀리지 않음), 안쪽 스크롤 막대가 항상 보임(iOS), 내용이 길면 칸 안에서 스크롤, 상세 칸에도 "더 있음" 표시
+// 칸 모드 ON, 칸 높이가 창 안에 들어옴(페이지가 같이 밀리지 않음), 더 있음 표시, 막대 자리 없음(iOS 기본 막대), 내용이 길면 칸 안에서 스크롤, 상세 칸에도 "더 있음" 표시
 const { chromium } = require('playwright');
 const assert = require('assert');
 const { loginAs } = require('./_login');
@@ -29,7 +29,7 @@ const after = () => { const app = document.querySelector('.vlp-app.fit-panes'); 
       const r = await p.evaluate(probe, true); assert(r, w + ' 터치 기기에서 칸 모드가 꺼짐'); r.bad.forEach((x) => bad.push(w + ' 고객 ' + x));
       assert(await p.evaluate(() => /--pane-h/.test(document.documentElement.getAttribute('style') || '')), w + ' 터치용 칸 높이(--pane-h) 없음');
       await p.waitForTimeout(300); const a = await p.evaluate(after);
-      a.filter((x) => x.can).forEach((x) => { if (!x.moved) bad.push(w + ' ' + x.n + ' 안쪽 스크롤이 안 움직임'); if (x.gut < 6) bad.push(w + ' ' + x.n + ' 스크롤 막대 항상 보임 아님(폭 ' + x.gut + ')'); });
+      a.filter((x) => x.can).forEach((x) => { if (!x.moved) bad.push(w + ' ' + x.n + ' 안쪽 스크롤이 안 움직임'); if (!x.more) bad.push(w + ' ' + x.n + ' "더 있음" 표시 없음'); if (!x.more) bad.push(w + ' ' + x.n + ' "더 있음" 표시 없음'); });
       assert(a.some((x) => x.can), w + ' 스크롤 가능한 칸이 없음(테스트 점검)');
       await p.context().close();
     }
@@ -50,7 +50,7 @@ const after = () => { const app = document.querySelector('.vlp-app.fit-panes'); 
           await new Promise((r) => setTimeout(r, 700)); return { top: d.scrollTop, hs: hs.filter((x) => x), closed: document.querySelector('.vlp-app').classList.contains('list-closed') }; });
         if (!st.closed) bad.push('목록 접힘 상태를 만들지 못함(테스트 점검)'); if (st.top !== 250) bad.push('목록 접힌 상태에서 스크롤 중 resize 로 상세 위치가 바뀜 ' + st.top); if (st.hs.some((x) => x === '9999px')) bad.push('목록 접힌 상태에서 칸 높이를 9999px 로 바꿈');
         await p.locator('.vlp-list-toggle').click({ timeout: 2000 }).catch(() => {}); await p.waitForTimeout(500); }
-      const a = await p.evaluate(after); a.filter((x) => x.can).forEach((x) => { if (!x.moved) bad.push(role + ' ' + x.n + ' 안쪽 스크롤 안 움직임'); if (x.gut < 6) bad.push(role + ' ' + x.n + ' 막대 항상 보임 아님'); });
+      const a = await p.evaluate(after); a.filter((x) => x.can).forEach((x) => { if (!x.moved) bad.push(role + ' ' + x.n + ' 안쪽 스크롤 안 움직임'); });
       if (!a.some((x) => x.can)) bad.push(role + ' 스크롤 가능한 칸 없음');
       await p.context().close();
     }
